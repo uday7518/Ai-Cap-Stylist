@@ -1,0 +1,95 @@
+.catalog-page {
+  padding: 40px 5%;
+}
+
+.catalog-title {
+  text-align: center;
+  font-size: 38px;
+  font-weight: 800;
+}
+
+.catalog-subtitle {
+  text-align: center;
+  color: #64748b;
+  margin-bottom: 28px;
+}
+
+.category-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.category-btn {
+  border: none;
+  padding: 11px 22px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #334155;
+  font-weight: 700;
+  transition: 0.25s ease;
+}
+
+.category-btn:hover,
+.category-btn.active {
+  background: #16a34a;
+  color: white;
+  transform: translateY(-2px);
+}
+
+.cap-card {
+  background: white;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
+  transition: 0.3s ease;
+  height: 100%;
+}
+
+.cap-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+}
+
+.cap-card img {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+}
+
+.cap-body {
+  padding: 24px;
+  text-align: center;
+}
+
+.cap-category {
+  background: #dcfce7;
+  color: #15803d;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cap-body h5 {
+  margin-top: 16px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.cap-body h6 {
+  color: #15803d;
+  font-size: 20px;
+  font-weight: 800;
+  margin: 14px 0;
+}
+
+.cap-body button {
+  border: none;
+  background: #2563eb;
+  color: white;
+  padding: 11px 22px;
+  border-radius: 10px;
+  font-weight: 700;
+}
