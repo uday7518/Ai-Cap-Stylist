@@ -1,1 +1,59 @@
-<p>admin works!</p>
+<div class="admin-page">
+  <h2>Admin Dashboard</h2>
+  <p>Add, view, filter, and manage caps</p>
+
+  <div class="admin-card">
+    <input type="text" placeholder="Cap Name" [(ngModel)]="newCap.name" />
+
+    <select [(ngModel)]="newCap.category">
+      <option value="">Select Category</option>
+      <option *ngFor="let category of categories" [value]="category">
+        {{ category }}
+      </option>
+    </select>
+
+    <input type="number" placeholder="Price" [(ngModel)]="newCap.price" />
+    <input type="number" placeholder="Stock Quantity" [(ngModel)]="newCap.stock" />
+
+    <input type="text" placeholder="Image URL" [(ngModel)]="newCap.image" />
+
+    <label class="upload-label">Or upload image</label>
+    <input type="file" accept="image/*" (change)="onImageUpload($event)" />
+
+    <img *ngIf="newCap.image" [src]="newCap.image" class="preview-img" alt="Cap preview" />
+
+    <textarea placeholder="Cap Description" [(ngModel)]="newCap.description"></textarea>
+
+    <button (click)="addCap()">{{ isEditMode ? 'Update Cap' : 'Add Cap' }}</button>
+  </div>
+
+  <div class="admin-header-row">
+    <h3>Added Caps</h3>
+
+    <select [(ngModel)]="selectedCategory">
+      <option value="All">All</option>
+      <option *ngFor="let category of categories" [value]="category">
+        {{ category }}
+      </option>
+    </select>
+  </div>
+
+  <div class="row">
+    <div class="col-md-4 mb-4" *ngFor="let cap of filteredCaps">
+      <div class="cap-card">
+        <img [src]="cap.image" [alt]="cap.name" />
+
+        <div class="cap-body">
+          <h5>{{ cap.name }}</h5>
+          <p>{{ cap.category }}</p>
+          <p>{{ cap.description }}</p>
+          <h6>${{ cap.price }}</h6>
+          <small>Stock: {{ cap.stock }}</small>
+          <br />
+          <button class="edit-btn" (click)="editCap(cap)">Edit</button>
+          <button class="delete-btn" (click)="deleteCap(cap)">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
