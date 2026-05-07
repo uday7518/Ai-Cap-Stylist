@@ -1,82 +1,28 @@
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class Product {
-  private storageKey = 'caps';
+  private apiUrl = 'http://localhost:3000/products';
 
-  getProducts() {
-    const savedCaps = localStorage.getItem(this.storageKey);
+  constructor(private http: HttpClient) {}
 
-    if (savedCaps) {
-      return JSON.parse(savedCaps);
-    }
-
-    return this.getDefaultCaps();
+  getProducts(): Observable<any[]> {
+    return this.http.get<any[]>(this.apiUrl);
   }
 
-  saveProducts(caps: any[]) {
-    localStorage.setItem(this.storageKey, JSON.stringify(caps));
+  addProduct(product: any): Observable<any> {
+    return this.http.post<any>(this.apiUrl, product);
   }
 
-  addProduct(cap: any) {
-    const caps = this.getProducts();
-    caps.push(cap);
-    this.saveProducts(caps);
+  updateProduct(product: any): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/${product._id}`, product);
   }
 
-  updateProduct(updatedCap: any) {
-    const caps = this.getProducts();
-
-    const updatedCaps = caps.map((cap: any) =>
-      cap.id === updatedCap.id ? updatedCap : cap
-    );
-
-    this.saveProducts(updatedCaps);
-  }
-
-  deleteProduct(index: number) {
-    const caps = this.getProducts();
-    caps.splice(index, 1);
-    this.saveProducts(caps);
-  }
-
-  deleteProductById(id: number) {
-    const caps = this.getProducts();
-    const updatedCaps = caps.filter((cap: any) => cap.id !== id);
-    this.saveProducts(updatedCaps);
-  }
-
-  getDefaultCaps() {
-    return [
-      {
-        id: 1,
-        name: 'Beach Vibe Cap',
-        category: 'Beach',
-        price: 20,
-        stock: 40,
-        description: 'Lightweight cap perfect for beach trips.',
-        image: 'https://images.unsplash.com/photo-1521369909029-2afed882baee'
-      },
-      {
-        id: 2,
-        name: 'Sporty Cap',
-        category: 'Sports',
-        price: 25,
-        stock: 35,
-        description: 'Comfortable cap for sports and outdoor activities.',
-        image: 'https://images.unsplash.com/photo-1575428652377-a2d80e2277fc'
-      },
-      {
-        id: 3,
-        name: 'Classic Black Cap',
-        category: 'Casual',
-        price: 18,
-        stock: 50,
-        description: 'Classic black cap for everyday casual wear.',
-        image: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b'
-      }
-    ];
+  deleteProduct(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/${id}`);
   }
 }

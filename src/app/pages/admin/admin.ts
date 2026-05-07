@@ -11,13 +11,11 @@ import { Product } from '../../services/product';
 })
 export class Admin {
   caps: any[] = [];
-
   categories = ['Beach', 'Dinner', 'Vacation', 'Picnic', 'Sports', 'Casual'];
   selectedCategory = 'All';
   isEditMode = false;
 
-  newCap = {
-    id: 0,
+  newCap: any = {
     name: '',
     category: '',
     price: null,
@@ -31,7 +29,9 @@ export class Admin {
   }
 
   loadCaps() {
-    this.caps = this.productService.getProducts();
+    this.productService.getProducts().subscribe((data: any[]) => {
+      this.caps = data;
+    });
   }
 
   get filteredCaps() {
@@ -45,9 +45,7 @@ export class Admin {
   onImageUpload(event: Event) {
     const input = event.target as HTMLInputElement;
 
-    if (!input.files || input.files.length === 0) {
-      return;
-    }
+    if (!input.files || input.files.length === 0) return;
 
     const file = input.files[0];
     const reader = new FileReader();
@@ -73,30 +71,18 @@ export class Admin {
     }
 
     if (this.isEditMode) {
-      this.productService.updateProduct({ ...this.newCap });
-      this.isEditMode = false;
-      alert('Cap updated successfully!');
+      this.productService.updateProduct(this.newCap).subscribe(() => {
+        alert('Cap updated successfully!');
+        this.resetForm();
+        this.loadCaps();
+      });
     } else {
-      const capToAdd = {
-        ...this.newCap,
-        id: Date.now()
-      };
-
-      this.productService.addProduct(capToAdd);
-      alert('Cap added successfully!');
+      this.productService.addProduct(this.newCap).subscribe(() => {
+        alert('Cap added successfully!');
+        this.resetForm();
+        this.loadCaps();
+      });
     }
-
-    this.newCap = {
-      id: 0,
-      name: '',
-      category: '',
-      price: null,
-      stock: null,
-      image: '',
-      description: ''
-    };
-
-    this.loadCaps();
   }
 
   editCap(cap: any) {
@@ -106,7 +92,21 @@ export class Admin {
   }
 
   deleteCap(cap: any) {
-    this.productService.deleteProductById(cap.id);
-    this.loadCaps();
+    this.productService.deleteProduct(cap._id).subscribe(() => {
+      this.loadCaps();
+    });
+  }
+
+  resetForm() {
+    this.newCap = {
+      name: '',
+      category: '',
+      price: null,
+      stock: null,
+      image: '',
+      description: ''
+    };
+
+    this.isEditMode = false;
   }
 }

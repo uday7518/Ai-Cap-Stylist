@@ -17,7 +17,13 @@ export class CatalogComponent {
   caps: any[] = [];
 
   constructor(private productService: Product) {
-    this.caps = this.productService.getProducts();
+    this.loadCaps();
+  }
+
+  loadCaps() {
+    this.productService.getProducts().subscribe((data) => {
+      this.caps = data;
+    });
   }
 
   get filteredCaps() {
