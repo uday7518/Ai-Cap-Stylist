@@ -13,18 +13,19 @@
     </button>
   </div>
 
-  <div class="row mt-4">
-    <div class="col-md-4 mb-4" *ngFor="let cap of filteredCaps">
-      <div class="cap-card">
-        <img [src]="cap.image" [alt]="cap.name" />
+<div class="row mt-4">
+  <div class="col-md-4 mb-4" *ngFor="let cap of filteredCaps">
+    <div class="cap-card">
+      <img [src]="cap.image" [alt]="cap.name" />
 
-        <div class="cap-body">
-          <span class="cap-category">{{ cap.category }}</span>
-          <h5>{{ cap.name }}</h5>
-          <h6>${{ cap.price }}</h6>
-          <button>Add to Cart</button>
-        </div>
+      <div class="cap-body">
+        <span class="cap-category">{{ cap.category }}</span>
+        <h5>{{ cap.name }}</h5>
+        <p>{{ cap.description }}</p>
+        <h6>${{ cap.price }}</h6>
+        <button>Add to Cart</button>
       </div>
     </div>
   </div>
+</div>
 </div>

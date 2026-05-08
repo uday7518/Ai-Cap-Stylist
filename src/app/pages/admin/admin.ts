@@ -1,7 +1,16 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Product } from '../../services/product';
+import { FirebaseProduct } from '../../services/firebase-product';
+
+const emptyCap = () => ({
+  name: '',
+  category: '',
+  price: null,
+  stock: null,
+  image: '',
+  description: ''
+});
 
 @Component({
   selector: 'app-admin',
@@ -10,27 +19,32 @@ import { Product } from '../../services/product';
   styleUrl: './admin.css'
 })
 export class Admin {
+  @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
+
   caps: any[] = [];
+
   categories = ['Beach', 'Dinner', 'Vacation', 'Picnic', 'Sports', 'Casual'];
   selectedCategory = 'All';
   isEditMode = false;
 
-  newCap: any = {
-    name: '',
-    category: '',
-    price: null,
-    stock: null,
-    image: '',
-    description: ''
-  };
+  newCap: any = emptyCap();
 
-  constructor(private productService: Product) {
+  constructor(
+    private productService: FirebaseProduct,
+    private cdr: ChangeDetectorRef
+  ) {
     this.loadCaps();
   }
 
   loadCaps() {
-    this.productService.getProducts().subscribe((data: any[]) => {
-      this.caps = data;
+    this.productService.getProducts().subscribe({
+      next: (data: any[]) => {
+        console.log('Firebase products:', data);
+        this.caps = data;
+      },
+      error: (error) => {
+        console.error('Firebase load error:', error);
+      }
     });
   }
 
@@ -57,7 +71,7 @@ export class Admin {
     reader.readAsDataURL(file);
   }
 
-  addCap() {
+  async addCap() {
     if (
       !this.newCap.name ||
       !this.newCap.category ||
@@ -70,18 +84,19 @@ export class Admin {
       return;
     }
 
-    if (this.isEditMode) {
-      this.productService.updateProduct(this.newCap).subscribe(() => {
+    try {
+      if (this.isEditMode) {
+        await this.productService.updateProduct(this.newCap);
         alert('Cap updated successfully!');
-        this.resetForm();
-        this.loadCaps();
-      });
-    } else {
-      this.productService.addProduct(this.newCap).subscribe(() => {
+      } else {
+        await this.productService.addProduct({ ...this.newCap });
         alert('Cap added successfully!');
-        this.resetForm();
-        this.loadCaps();
-      });
+      }
+
+      this.resetForm();
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('Something went wrong while saving cap');
     }
   }
 
@@ -91,22 +106,19 @@ export class Admin {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  deleteCap(cap: any) {
-    this.productService.deleteProduct(cap._id).subscribe(() => {
-      this.loadCaps();
-    });
+  async deleteCap(cap: any) {
+    await this.productService.deleteProduct(cap.id);
+    this.resetForm();
   }
 
   resetForm() {
-    this.newCap = {
-      name: '',
-      category: '',
-      price: null,
-      stock: null,
-      image: '',
-      description: ''
-    };
-
+    this.newCap = emptyCap();
     this.isEditMode = false;
+
+    if (this.imageInput?.nativeElement) {
+      this.imageInput.nativeElement.value = '';
+    }
+
+    this.cdr.detectChanges();
   }
 }

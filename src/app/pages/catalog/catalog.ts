@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Product } from '../../services/product';
+import { FirebaseProduct } from '../../services/firebase-product';
 
 @Component({
   selector: 'app-catalog',
@@ -11,18 +11,23 @@ import { Product } from '../../services/product';
 })
 export class CatalogComponent {
   selectedCategory = 'All';
-
   categories = ['All', 'Beach', 'Dinner', 'Vacation', 'Picnic', 'Sports', 'Casual'];
 
   caps: any[] = [];
 
-  constructor(private productService: Product) {
+  constructor(private productService: FirebaseProduct) {
     this.loadCaps();
   }
 
   loadCaps() {
-    this.productService.getProducts().subscribe((data) => {
-      this.caps = data;
+    this.productService.getProducts().subscribe({
+      next: (data: any[]) => {
+        console.log('Catalog Firebase products:', data);
+        this.caps = data;
+      },
+      error: (err) => {
+        console.error('Catalog Firebase error:', err);
+      }
     });
   }
 
