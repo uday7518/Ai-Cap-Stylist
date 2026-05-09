@@ -1,6 +1,9 @@
 import { ChangeDetectorRef, Component, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { signOut } from 'firebase/auth';
+import { firebaseAuth } from '../../firebase.config';
 import { FirebaseProduct } from '../../services/firebase-product';
 
 const emptyCap = () => ({
@@ -31,7 +34,8 @@ export class Admin {
 
   constructor(
     private productService: FirebaseProduct,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private router: Router
   ) {
     this.loadCaps();
   }
@@ -109,6 +113,12 @@ export class Admin {
   async deleteCap(cap: any) {
     await this.productService.deleteProduct(cap.id);
     this.resetForm();
+  }
+
+  logout() {
+    signOut(firebaseAuth).then(() => {
+      this.router.navigate(['/login']);
+    });
   }
 
   resetForm() {

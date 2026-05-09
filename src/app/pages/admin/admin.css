@@ -108,3 +108,13 @@
   border-radius: 12px;
   border: 1px solid #d1d5db;
 }
+
+.logout-btn {
+  margin: 16px 0 24px;
+  border: none;
+  background: #dc2626;
+  color: white;
+  padding: 12px 22px;
+  border-radius: 12px;
+  font-weight: 800;
+}

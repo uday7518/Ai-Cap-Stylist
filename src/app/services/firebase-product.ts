@@ -1,34 +1,20 @@
 import { Injectable, NgZone } from '@angular/core';
 import { Observable } from 'rxjs';
-import { initializeApp } from 'firebase/app';
 import {
   addDoc,
   collection,
   deleteDoc,
   doc,
-  getFirestore,
   onSnapshot,
   updateDoc
 } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: 'AIzaSyDkzyWnWbiUH--91SRNVq0jJL18abEvD_Y',
-  authDomain: 'ai-cap-stylist.firebaseapp.com',
-  projectId: 'ai-cap-stylist',
-  storageBucket: 'ai-cap-stylist.firebasestorage.app',
-  messagingSenderId: '314939665341',
-  appId: '1:314939665341:web:496de3fb5b9bc3423f80d4',
-  measurementId: 'G-9NC5S4NKJL'
-};
-
-const firebaseApp = initializeApp(firebaseConfig);
-const firestore = getFirestore(firebaseApp);
+import { firebaseDb } from '../firebase.config';
 
 @Injectable({
   providedIn: 'root'
 })
 export class FirebaseProduct {
-  private productsRef = collection(firestore, 'products');
+  private productsRef = collection(firebaseDb, 'products');
 
   constructor(private zone: NgZone) {}
 
@@ -64,7 +50,7 @@ export class FirebaseProduct {
   }
 
   updateProduct(product: any) {
-    const productDoc = doc(firestore, `products/${product.id}`);
+    const productDoc = doc(firebaseDb, `products/${product.id}`);
 
     return updateDoc(productDoc, {
       name: product.name,
@@ -77,7 +63,7 @@ export class FirebaseProduct {
   }
 
   deleteProduct(id: string) {
-    const productDoc = doc(firestore, `products/${id}`);
+    const productDoc = doc(firebaseDb, `products/${id}`);
     return deleteDoc(productDoc);
   }
 }

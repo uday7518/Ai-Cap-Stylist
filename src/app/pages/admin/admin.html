@@ -1,6 +1,7 @@
 <div class="admin-page">
   <h2>Admin Dashboard</h2>
   <p>Add, view, filter, and manage caps</p>
+  <button class="logout-btn" (click)="logout()">Logout</button>
 
   <div class="admin-card">
     <input type="text" placeholder="Cap Name" [(ngModel)]="newCap.name" />
