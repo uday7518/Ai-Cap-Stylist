@@ -44,5 +44,7 @@
 
 .error {
   margin-top: 14px;
-  color: #dc2626;
+  color: #dc2626 !important;
+  font-weight: 700;
+  text-align: center;
 }

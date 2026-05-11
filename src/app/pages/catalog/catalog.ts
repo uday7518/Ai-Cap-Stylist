@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FirebaseProduct } from '../../services/firebase-product';
 
@@ -14,8 +14,12 @@ export class CatalogComponent {
   categories = ['All', 'Beach', 'Dinner', 'Vacation', 'Picnic', 'Sports', 'Casual'];
 
   caps: any[] = [];
+  filteredCaps: any[] = [];
 
-  constructor(private productService: FirebaseProduct) {
+  constructor(
+    private productService: FirebaseProduct,
+    private cdr: ChangeDetectorRef
+  ) {
     this.loadCaps();
   }
 
@@ -24,6 +28,9 @@ export class CatalogComponent {
       next: (data: any[]) => {
         console.log('Catalog Firebase products:', data);
         this.caps = data;
+        this.selectedCategory = 'All';
+        this.filterCaps();
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Catalog Firebase error:', err);
@@ -31,15 +38,21 @@ export class CatalogComponent {
     });
   }
 
-  get filteredCaps() {
-    if (this.selectedCategory === 'All') {
-      return this.caps;
+  filterCaps() {
+    const selected = this.selectedCategory?.trim().toLowerCase();
+
+    if (!selected || selected === 'all') {
+      this.filteredCaps = this.caps;
+      return;
     }
 
-    return this.caps.filter(cap => cap.category === this.selectedCategory);
+    this.filteredCaps = this.caps.filter(
+      cap => cap.category?.trim().toLowerCase() === selected
+    );
   }
 
   selectCategory(category: string) {
     this.selectedCategory = category;
+    this.filterCaps();
   }
 }

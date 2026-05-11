@@ -31,7 +31,7 @@
   <div class="admin-header-row">
     <h3>Added Caps</h3>
 
-    <select [(ngModel)]="selectedCategory">
+    <select [(ngModel)]="selectedCategory" (ngModelChange)="filterCaps()">
       <option value="All">All</option>
       <option *ngFor="let category of categories" [value]="category">
         {{ category }}

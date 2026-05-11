@@ -25,6 +25,7 @@ export class Admin {
   @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
 
   caps: any[] = [];
+  filteredCaps: any[] = [];
 
   categories = ['Beach', 'Dinner', 'Vacation', 'Picnic', 'Sports', 'Casual'];
   selectedCategory = 'All';
@@ -45,6 +46,9 @@ export class Admin {
       next: (data: any[]) => {
         console.log('Firebase products:', data);
         this.caps = data;
+        this.selectedCategory = 'All';
+        this.filterCaps();
+        this.cdr.detectChanges();
       },
       error: (error) => {
         console.error('Firebase load error:', error);
@@ -52,12 +56,17 @@ export class Admin {
     });
   }
 
-  get filteredCaps() {
-    if (this.selectedCategory === 'All') {
-      return this.caps;
+  filterCaps() {
+    const selected = this.selectedCategory?.trim().toLowerCase();
+
+    if (!selected || selected === 'all') {
+      this.filteredCaps = this.caps;
+      return;
     }
 
-    return this.caps.filter(cap => cap.category === this.selectedCategory);
+    this.filteredCaps = this.caps.filter(
+      cap => cap.category?.trim().toLowerCase() === selected
+    );
   }
 
   onImageUpload(event: Event) {
