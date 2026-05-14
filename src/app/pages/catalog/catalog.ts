@@ -1,6 +1,7 @@
 import { ChangeDetectorRef, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FirebaseProduct } from '../../services/firebase-product';
+import { Cart } from '../../services/cart';
 
 @Component({
   selector: 'app-catalog',
@@ -18,6 +19,7 @@ export class CatalogComponent {
 
   constructor(
     private productService: FirebaseProduct,
+    private cartService: Cart,
     private cdr: ChangeDetectorRef
   ) {
     this.loadCaps();
@@ -54,5 +56,17 @@ export class CatalogComponent {
   selectCategory(category: string) {
     this.selectedCategory = category;
     this.filterCaps();
+  }
+
+  addToCart(cap: any) {
+    this.cartService.addToCart(cap);
+  }
+
+  decreaseQuantity(cap: any) {
+    this.cartService.decreaseQuantity(cap.id);
+  }
+
+  getQuantity(cap: any) {
+    return this.cartService.getProductQuantity(cap.id);
   }
 }

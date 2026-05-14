@@ -23,7 +23,16 @@
         <h5>{{ cap.name }}</h5>
         <p>{{ cap.description }}</p>
         <h6>${{ cap.price }}</h6>
-        <button>Add to Cart</button>
+
+        <div *ngIf="getQuantity(cap) === 0">
+          <button (click)="addToCart(cap)">Add to Cart</button>
+        </div>
+
+        <div *ngIf="getQuantity(cap) > 0" class="qty-box">
+          <button (click)="decreaseQuantity(cap)">-</button>
+          <span>{{ getQuantity(cap) }}</span>
+          <button (click)="addToCart(cap)">+</button>
+        </div>
       </div>
     </div>
   </div>

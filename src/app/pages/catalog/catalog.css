@@ -93,3 +93,28 @@
   border-radius: 10px;
   font-weight: 700;
 }
+
+.qty-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.qty-box button {
+  border: none;
+  background: #2563eb;
+  color: white;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 22px;
+  font-weight: 800;
+  padding: 0;
+}
+
+.qty-box span {
+  font-size: 20px;
+  font-weight: 800;
+}
