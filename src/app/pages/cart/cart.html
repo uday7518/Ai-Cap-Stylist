@@ -25,7 +25,7 @@
       </div>
 
       <p class="subtotal">
-        Subtotal: ${{ item.price * item.quantity }}
+        Subtotal: ${{ (item.price * item.quantity).toFixed(2) }}
       </p>
 
       <button class="remove-btn" (click)="removeItem(item.id)">
