@@ -227,6 +227,39 @@
   border-radius: 12px;
 }
 
+.invoice-form {
+  background: white;
+  padding: 28px;
+  border-radius: 22px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08);
+}
+
+.invoice-form label {
+  display: block;
+  color: #334155;
+  font-weight: 800;
+  margin: 18px 0 8px;
+}
+
+.invoice-form select,
+.invoice-form textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+}
+
+.invoice-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.invoice-form h2 {
+  font-size: 26px;
+  font-weight: 800;
+  margin-top: 28px;
+}
+
 .order-product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -264,13 +297,122 @@
   font-weight: 800;
 }
 
+.order-product-card .return-btn {
+  background: #dc2626;
+}
+
+.order-qty-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 12px;
+  background: #f1f5f9;
+  padding: 10px 14px;
+  border-radius: 999px;
+}
+
+.order-qty-box button {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  background: #2563eb;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.order-qty-box span {
+  min-width: 26px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.return-qty-box button {
+  background: #dc2626;
+}
+
 .selected-item {
   display: flex;
   justify-content: space-between;
-  background: #f1f5f9;
-  padding: 14px;
-  border-radius: 12px;
-  margin-bottom: 10px;
+  align-items: center;
+  background: #f8fafc;
+  padding: 16px 20px;
+  border-radius: 14px;
+  margin-bottom: 12px;
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quantity-controls button {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.quantity-controls span {
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+}
+
+.item-price {
+  color: #16a34a;
+  font-weight: 800;
+}
+
+.return-item {
+  background: #fee2e2;
+}
+
+.invoice-summary {
+  background: #f8fafc;
+  border-radius: 16px;
+  margin: 20px 0;
+  padding: 18px;
+}
+
+.invoice-summary div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.invoice-summary h2 {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 14px;
+}
+
+.invoice-summary .final-total {
+  border-top: 1px solid #d1d5db;
+  font-size: 22px;
+  font-weight: 800;
+  margin-top: 18px;
+  padding-top: 18px;
 }
 
 .orders-grid {

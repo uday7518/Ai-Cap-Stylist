@@ -157,15 +157,25 @@
           <p><strong>Phone:</strong> {{ order.phone }}</p>
           <p><strong>Address:</strong> {{ order.storeAddress }}</p>
 
-          <h4>Products</h4>
+          <h4>New Order Products</h4>
 
-          <div class="order-item" *ngFor="let item of order.selectedItems">
+          <div class="order-item" *ngFor="let item of (order.newItems || order.selectedItems || [])">
             <span>{{ item.name }}</span>
             <span>Qty: {{ item.quantity }}</span>
             <span>${{ (item.price * item.quantity).toFixed(2) }}</span>
           </div>
 
-          <h3 class="order-total">Total: ${{ (order.total || 0).toFixed(2) }}</h3>
+          <h4 *ngIf="order.returnItems?.length">Returned Products</h4>
+
+          <div class="order-item return-item" *ngFor="let item of order.returnItems">
+            <span>{{ item.name }}</span>
+            <span>Qty: {{ item.quantity }}</span>
+            <span>-${{ (item.price * item.quantity).toFixed(2) }}</span>
+          </div>
+
+          <p *ngIf="order.notes"><strong>Notes:</strong> {{ order.notes }}</p>
+
+          <h3 class="order-total">Total: ${{ (order.finalAmount || order.total || 0).toFixed(2) }}</h3>
 
           <select [(ngModel)]="order.status" (change)="updateOrderStatus(order)">
             <option value="Pending">Pending</option>
@@ -228,10 +238,11 @@
     </div>
 
     <div *ngIf="activeTab === 'addOrder'">
-      <h1>Add Store Order</h1>
-      <p>Create gas station or mart orders here.</p>
+      <h1>Create Store Visit Invoice</h1>
+      <p>Select store, add new order items, mark returns, and generate final invoice.</p>
 
-      <div class="order-form">
+      <div class="invoice-form">
+        <label>Select Store</label>
         <select [(ngModel)]="newOrder.storeId">
           <option value="">Select Store</option>
           <option *ngFor="let store of stores" [value]="store.id">
@@ -239,28 +250,110 @@
           </option>
         </select>
 
-        <h3>Select Caps</h3>
+        <h2>New Order Items</h2>
 
         <div class="order-product-grid">
           <div class="order-product-card" *ngFor="let cap of caps">
-            <img [src]="cap.image" [alt]="cap.name" />
+            <img [src]="cap.image" />
             <h4>{{ cap.name }}</h4>
             <p>${{ cap.price }}</p>
-            <button (click)="addItemToOrder(cap)">Add</button>
+
+            <div *ngIf="getNewOrderQty(cap) === 0">
+              <button (click)="addNewOrderItem(cap)">Add Order</button>
+            </div>
+
+            <div *ngIf="getNewOrderQty(cap) > 0" class="order-qty-box">
+              <button (click)="decreaseNewOrderCap(cap)">-</button>
+              <span>{{ getNewOrderQty(cap) }}</span>
+              <button (click)="addNewOrderItem(cap)">+</button>
+            </div>
           </div>
         </div>
 
-        <h3>Selected Items</h3>
+        <h3>Selected New Order Items</h3>
 
-        <div class="selected-item" *ngFor="let item of newOrder.selectedItems">
-          <span>{{ item.name }}</span>
-          <span>Qty: {{ item.quantity }}</span>
-          <span>${{ (item.price * item.quantity).toFixed(2) }}</span>
+        <div class="selected-item" *ngFor="let item of newOrder.newItems">
+          <div class="item-left">
+            <span>{{ item.name }}</span>
+          </div>
+
+          <div class="quantity-controls">
+            <button (click)="decreaseNewOrderQty(item)">-</button>
+            <span>{{ item.quantity }}</span>
+            <button (click)="increaseNewOrderQty(item)">+</button>
+          </div>
+
+          <div class="item-price">
+            ${{ (item.price * item.quantity).toFixed(2) }}
+          </div>
         </div>
 
-        <h2>Total: ${{ getOrderTotal().toFixed(2) }}</h2>
+        <h2>Returned Items</h2>
 
-        <button class="save-order-btn" (click)="saveOrder()">Save Order</button>
+        <div class="order-product-grid">
+          <div class="order-product-card" *ngFor="let cap of caps">
+            <img [src]="cap.image" />
+            <h4>{{ cap.name }}</h4>
+            <p>${{ cap.price }}</p>
+
+            <div *ngIf="getReturnQty(cap) === 0">
+              <button class="return-btn" (click)="addReturnItem(cap)">Add Return</button>
+            </div>
+
+            <div *ngIf="getReturnQty(cap) > 0" class="order-qty-box return-qty-box">
+              <button (click)="decreaseReturnCap(cap)">-</button>
+              <span>{{ getReturnQty(cap) }}</span>
+              <button (click)="addReturnItem(cap)">+</button>
+            </div>
+          </div>
+        </div>
+
+        <h3>Selected Returned Items</h3>
+
+        <div class="selected-item return-item" *ngFor="let item of newOrder.returnItems">
+          <div class="item-left">
+            <span>{{ item.name }}</span>
+          </div>
+
+          <div class="quantity-controls">
+            <button (click)="decreaseReturnQty(item)">-</button>
+            <span>{{ item.quantity }}</span>
+            <button (click)="increaseReturnQty(item)">+</button>
+          </div>
+
+          <div class="item-price">
+            -${{ (item.price * item.quantity).toFixed(2) }}
+          </div>
+        </div>
+
+        <label>Visit Notes</label>
+        <textarea
+          [(ngModel)]="newOrder.notes"
+          placeholder="Example: Store owner requested more sports caps next visit."
+        ></textarea>
+
+        <div class="invoice-summary">
+          <h2>Invoice Summary</h2>
+
+          <div>
+            <span>New Order Total</span>
+            <strong>${{ getNewOrderTotal().toFixed(2) }}</strong>
+          </div>
+
+          <div>
+            <span>Return Credit</span>
+            <strong>-${{ getReturnTotal().toFixed(2) }}</strong>
+          </div>
+
+          <div class="final-total">
+            <span>Final Amount Due</span>
+            <strong>${{ getFinalInvoiceTotal().toFixed(2) }}</strong>
+          </div>
+        </div>
+
+        <button class="save-order-btn" (click)="saveOrder()">
+          Save Invoice
+        </button>
       </div>
     </div>
   </main>

@@ -41,7 +41,9 @@ export class Admin {
   newOrder: any = {
     storeId: '',
     status: 'Pending',
-    selectedItems: []
+    newItems: [],
+    returnItems: [],
+    notes: ''
   };
 
   newStore: any = {
@@ -137,60 +139,184 @@ export class Admin {
     );
   }
 
-  addItemToOrder(cap: any) {
-    const existing = this.newOrder.selectedItems.find((item: any) => item.id === cap.id);
+  canAddOrderItems() {
+    if (!this.newOrder.storeId) {
+      alert('Please select a store first.');
+      return false;
+    }
+
+    return true;
+  }
+
+  addNewOrderItem(cap: any) {
+    if (!this.canAddOrderItems()) return;
+
+    const existing = this.newOrder.newItems.find((item: any) => item.id === cap.id);
 
     if (existing) {
       existing.quantity += 1;
     } else {
-      this.newOrder.selectedItems.push({
+      this.newOrder.newItems.push({
         id: cap.id,
         name: cap.name,
-        price: cap.price,
+        price: Number(cap.price),
         quantity: 1
       });
     }
   }
 
-  getOrderTotal() {
-    return this.newOrder.selectedItems.reduce(
-      (total: number, item: any) => total + Number(item.price) * Number(item.quantity),
+  addReturnItem(cap: any) {
+    if (!this.canAddOrderItems()) return;
+
+    const existing = this.newOrder.returnItems.find((item: any) => item.id === cap.id);
+
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      this.newOrder.returnItems.push({
+        id: cap.id,
+        name: cap.name,
+        price: Number(cap.price),
+        quantity: 1
+      });
+    }
+  }
+
+  addItemToOrder(cap: any) {
+    this.addNewOrderItem(cap);
+  }
+
+  getNewOrderQty(cap: any) {
+    const item = this.newOrder.newItems.find((i: any) => i.id === cap.id);
+    return item ? item.quantity : 0;
+  }
+
+  getReturnQty(cap: any) {
+    const item = this.newOrder.returnItems.find((i: any) => i.id === cap.id);
+    return item ? item.quantity : 0;
+  }
+
+  decreaseNewOrderCap(cap: any) {
+    const item = this.newOrder.newItems.find((i: any) => i.id === cap.id);
+
+    if (!item) return;
+
+    if (item.quantity > 1) {
+      item.quantity--;
+    } else {
+      this.newOrder.newItems = this.newOrder.newItems.filter((i: any) => i.id !== cap.id);
+    }
+  }
+
+  decreaseReturnCap(cap: any) {
+    const item = this.newOrder.returnItems.find((i: any) => i.id === cap.id);
+
+    if (!item) return;
+
+    if (item.quantity > 1) {
+      item.quantity--;
+    } else {
+      this.newOrder.returnItems = this.newOrder.returnItems.filter((i: any) => i.id !== cap.id);
+    }
+  }
+
+  increaseNewOrderQty(item: any) {
+    item.quantity++;
+  }
+
+  decreaseNewOrderQty(item: any) {
+    if (item.quantity > 1) {
+      item.quantity--;
+    } else {
+      this.newOrder.newItems = this.newOrder.newItems.filter((i: any) => i !== item);
+    }
+  }
+
+  increaseReturnQty(item: any) {
+    item.quantity++;
+  }
+
+  decreaseReturnQty(item: any) {
+    if (item.quantity > 1) {
+      item.quantity--;
+    } else {
+      this.newOrder.returnItems = this.newOrder.returnItems.filter((i: any) => i !== item);
+    }
+  }
+
+  getNewOrderTotal() {
+    return this.newOrder.newItems.reduce(
+      (total: number, item: any) => total + item.price * item.quantity,
       0
     );
   }
 
+  getReturnTotal() {
+    return this.newOrder.returnItems.reduce(
+      (total: number, item: any) => total + item.price * item.quantity,
+      0
+    );
+  }
+
+  getFinalInvoiceTotal() {
+    return this.getNewOrderTotal() - this.getReturnTotal();
+  }
+
+  getOrderTotal() {
+    return this.getFinalInvoiceTotal();
+  }
+
   async saveOrder() {
-    if (!this.newOrder.storeId || this.newOrder.selectedItems.length === 0) {
-      alert('Please select a store and add at least one cap');
+    if (!this.newOrder.storeId) {
+      alert('Please select a store');
+      return;
+    }
+
+    if (
+      this.newOrder.newItems.length === 0 &&
+      this.newOrder.returnItems.length === 0
+    ) {
+      alert('Please add at least one order item or return item');
       return;
     }
 
     const selectedStore = this.stores.find(
-      store => String(store.id) === String(this.newOrder.storeId)
+      store => store.id === this.newOrder.storeId
     );
 
-    const orderToSave = {
-      ...this.newOrder,
+    const invoiceToSave = {
+      storeId: this.newOrder.storeId,
       storeName: selectedStore?.storeName,
       storeAddress: selectedStore?.storeAddress,
       ownerName: selectedStore?.ownerName,
       phone: selectedStore?.phone,
-      total: this.getOrderTotal(),
+
+      newItems: this.newOrder.newItems,
+      returnItems: this.newOrder.returnItems,
+
+      orderTotal: this.getNewOrderTotal(),
+      returnTotal: this.getReturnTotal(),
+      finalAmount: this.getFinalInvoiceTotal(),
+
+      notes: this.newOrder.notes,
       status: 'Pending',
       date: new Date()
     };
 
     try {
-      await this.orderService.addOrder(orderToSave);
+      await this.orderService.addOrder(invoiceToSave);
 
       this.newOrder = {
         storeId: '',
         status: 'Pending',
-        selectedItems: []
+        newItems: [],
+        returnItems: [],
+        notes: ''
       };
 
       this.cdr.detectChanges();
-      alert('Order saved successfully!');
+      alert('Invoice saved successfully!');
+      this.setActiveTab('orders');
     } catch (error) {
       console.error('Order save error:', error);
       alert('Something went wrong while saving order');
