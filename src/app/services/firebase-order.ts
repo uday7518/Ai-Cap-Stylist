@@ -52,6 +52,12 @@ export class FirebaseOrder {
     });
   }
 
+  updateOrderInvoice(id: string, invoicePayload: any) {
+    const orderDoc = doc(firebaseDb, `orders/${id}`);
+
+    return updateDoc(orderDoc, invoicePayload);
+  }
+
   deleteOrder(id: string) {
     const orderDoc = doc(firebaseDb, `orders/${id}`);
     return deleteDoc(orderDoc);

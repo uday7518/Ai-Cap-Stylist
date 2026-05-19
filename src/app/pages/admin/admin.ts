@@ -46,6 +46,15 @@ export class Admin {
     notes: ''
   };
 
+  selectedInvoiceOrder: any = null;
+
+  invoiceData: any = {
+    paymentMethod: 'Cash',
+    checkNumber: '',
+    amountPaid: null,
+    invoiceNotes: ''
+  };
+
   newStore: any = {
     id: '',
     storeName: '',
@@ -338,6 +347,72 @@ export class Admin {
     } catch (error) {
       console.error('Order delete error:', error);
       alert('Something went wrong while deleting order');
+    }
+  }
+
+  openInvoice(order: any) {
+    this.selectedInvoiceOrder = order;
+
+    this.invoiceData = {
+      paymentMethod: 'Cash',
+      checkNumber: '',
+      amountPaid: order.finalAmount || order.total || 0,
+      invoiceNotes: ''
+    };
+  }
+
+  closeInvoice() {
+    this.selectedInvoiceOrder = null;
+
+    this.invoiceData = {
+      paymentMethod: 'Cash',
+      checkNumber: '',
+      amountPaid: null,
+      invoiceNotes: ''
+    };
+  }
+
+  async saveInvoice() {
+    if (!this.selectedInvoiceOrder) return;
+
+    if (!this.invoiceData.paymentMethod) {
+      alert('Please select payment method');
+      return;
+    }
+
+    if (
+      this.invoiceData.paymentMethod === 'Check' &&
+      !this.invoiceData.checkNumber
+    ) {
+      alert('Please enter check number');
+      return;
+    }
+
+    const invoicePayload = {
+      invoice: {
+        paymentMethod: this.invoiceData.paymentMethod,
+        checkNumber:
+          this.invoiceData.paymentMethod === 'Check'
+            ? this.invoiceData.checkNumber
+            : '',
+        amountPaid: Number(this.invoiceData.amountPaid),
+        invoiceNotes: this.invoiceData.invoiceNotes,
+        invoiceDate: new Date()
+      },
+      status: 'Delivered'
+    };
+
+    try {
+      await this.orderService.updateOrderInvoice(
+        this.selectedInvoiceOrder.id,
+        invoicePayload
+      );
+
+      alert('Invoice saved successfully!');
+      this.closeInvoice();
+    } catch (error) {
+      console.error('Invoice save error:', error);
+      alert('Something went wrong while saving invoice');
     }
   }
 

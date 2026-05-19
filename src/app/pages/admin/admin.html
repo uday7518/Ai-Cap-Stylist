@@ -185,9 +185,62 @@
             <option value="Cancelled">Cancelled</option>
           </select>
 
+          <button class="invoice-btn" (click)="openInvoice(order)">
+            Create Invoice
+          </button>
+
           <button class="delete-btn" (click)="deleteOrder(order.id)">
             Delete Order
           </button>
+        </div>
+      </div>
+
+      <div class="invoice-modal" *ngIf="selectedInvoiceOrder">
+        <div class="invoice-box">
+          <h2>Create Invoice</h2>
+
+          <p>
+            <strong>Store:</strong> {{ selectedInvoiceOrder.storeName }}
+          </p>
+
+          <p>
+            <strong>Final Amount:</strong>
+            ${{ (selectedInvoiceOrder.finalAmount || selectedInvoiceOrder.total || 0).toFixed(2) }}
+          </p>
+
+          <label>Payment Method</label>
+          <select [(ngModel)]="invoiceData.paymentMethod">
+            <option value="Cash">Cash</option>
+            <option value="Check">Check</option>
+          </select>
+
+          <div *ngIf="invoiceData.paymentMethod === 'Check'">
+            <label>Check Number</label>
+            <input
+              type="text"
+              placeholder="Enter check number"
+              [(ngModel)]="invoiceData.checkNumber"
+            />
+          </div>
+
+          <label>Amount Paid</label>
+          <input type="number" [(ngModel)]="invoiceData.amountPaid" />
+
+          <label>Invoice Notes</label>
+          <textarea
+            placeholder="Example: Paid by store manager after delivery"
+            [(ngModel)]="invoiceData.invoiceNotes"
+          ></textarea>
+
+          <div class="invoice-actions">
+            <button class="save-order-btn" (click)="saveInvoice()">
+              Save Invoice
+            </button>
+
+            <button class="delete-btn" (click)="closeInvoice()">
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
