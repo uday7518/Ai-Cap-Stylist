@@ -43,6 +43,7 @@ export class FirebaseStore {
       storeAddress: store.storeAddress,
       ownerName: store.ownerName,
       phone: store.phone,
+      email: store.email,
       createdAt: new Date()
     });
   }
@@ -54,7 +55,8 @@ export class FirebaseStore {
       storeName: store.storeName,
       storeAddress: store.storeAddress,
       ownerName: store.ownerName,
-      phone: store.phone
+      phone: store.phone,
+      email: store.email
     });
   }
 

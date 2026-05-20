@@ -146,6 +146,10 @@
 
       <div class="orders-grid">
         <div class="order-card" *ngFor="let order of orders">
+          <div class="order-card-invoice-number" *ngIf="order.invoice?.invoiceNumber">
+            {{ order.invoice.invoiceNumber }}
+          </div>
+
           <div class="order-header">
             <h3>{{ order.storeName }}</h3>
             <span [class]="(order.status || 'Pending').toLowerCase()">
@@ -155,6 +159,7 @@
 
           <p><strong>Owner:</strong> {{ order.ownerName }}</p>
           <p><strong>Phone:</strong> {{ order.phone }}</p>
+          <p><strong>Email:</strong> {{ order.email || 'N/A' }}</p>
           <p><strong>Address:</strong> {{ order.storeAddress }}</p>
 
           <h4>New Order Products</h4>
@@ -185,8 +190,14 @@
             <option value="Cancelled">Cancelled</option>
           </select>
 
-          <button class="invoice-btn" (click)="openInvoice(order)">
-            Create Invoice
+          <ng-container *ngIf="!order.invoice">
+            <button class="invoice-btn" (click)="openInvoice(order)">
+              Create Invoice
+            </button>
+          </ng-container>
+
+          <button *ngIf="order.invoice" class="view-invoice-btn" (click)="openInvoice(order)">
+            📄 View Invoice Details
           </button>
 
           <button class="delete-btn" (click)="deleteOrder(order.id)">
@@ -197,50 +208,143 @@
 
       <div class="invoice-modal" *ngIf="selectedInvoiceOrder">
         <div class="invoice-box">
-          <h2>Create Invoice</h2>
 
-          <p>
-            <strong>Store:</strong> {{ selectedInvoiceOrder.storeName }}
-          </p>
-
-          <p>
-            <strong>Final Amount:</strong>
-            ${{ (selectedInvoiceOrder.finalAmount || selectedInvoiceOrder.total || 0).toFixed(2) }}
-          </p>
-
-          <label>Payment Method</label>
-          <select [(ngModel)]="invoiceData.paymentMethod">
-            <option value="Cash">Cash</option>
-            <option value="Check">Check</option>
-          </select>
-
-          <div *ngIf="invoiceData.paymentMethod === 'Check'">
-            <label>Check Number</label>
-            <input
-              type="text"
-              placeholder="Enter check number"
-              [(ngModel)]="invoiceData.checkNumber"
-            />
+          <div class="invoice-modal-header">
+            <h2>Create Invoice</h2>
+            <button class="close-x-btn" (click)="closeInvoice()" title="Close">✕</button>
           </div>
 
-          <label>Amount Paid</label>
-          <input type="number" [(ngModel)]="invoiceData.amountPaid" />
+          <div class="invoice-store-info">
+            <p><strong>Store:</strong> {{ selectedInvoiceOrder.storeName }}</p>
+            <p><strong>Owner:</strong> {{ selectedInvoiceOrder.ownerName }}</p>
+            <p><strong>Email:</strong> {{ selectedInvoiceOrder.email || 'N/A' }}</p>
+            <p>
+              <strong>Final Amount:</strong>
+              ${{ (selectedInvoiceOrder.finalAmount || selectedInvoiceOrder.total || 0).toFixed(2) }}
+            </p>
+          </div>
 
-          <label>Invoice Notes</label>
-          <textarea
-            placeholder="Example: Paid by store manager after delivery"
-            [(ngModel)]="invoiceData.invoiceNotes"
-          ></textarea>
+          <!-- ── Invoice saved: show full details ── -->
+          <ng-container *ngIf="invoiceSaved && selectedInvoiceOrder.invoice">
+
+            <div class="invoice-saved-banner">
+              <span>✅ Invoice already saved</span>
+              <button class="edit-invoice-link" (click)="editInvoice()">Edit</button>
+            </div>
+
+            <div class="invoice-details-card">
+              <div class="invoice-details-row">
+                <span class="inv-label">Invoice #</span>
+                <span class="inv-value">{{ selectedInvoiceOrder.invoice.invoiceNumber }}</span>
+              </div>
+              <div class="invoice-details-row">
+                <span class="inv-label">Date</span>
+                <span class="inv-value">
+                  {{ (selectedInvoiceOrder.invoice.invoiceDate?.seconds
+                      ? selectedInvoiceOrder.invoice.invoiceDate.seconds * 1000
+                      : selectedInvoiceOrder.invoice.invoiceDate) | date: 'MMM d, y' }}
+                </span>
+              </div>
+              <div class="invoice-details-row">
+                <span class="inv-label">Payment Method</span>
+                <span class="inv-value">{{ selectedInvoiceOrder.invoice.paymentMethod }}</span>
+              </div>
+              <div class="invoice-details-row" *ngIf="selectedInvoiceOrder.invoice.checkNumber">
+                <span class="inv-label">Check Number</span>
+                <span class="inv-value">{{ selectedInvoiceOrder.invoice.checkNumber }}</span>
+              </div>
+              <div class="invoice-details-row">
+                <span class="inv-label">Amount Paid</span>
+                <span class="inv-value inv-amount">${{ selectedInvoiceOrder.invoice.amountPaid?.toFixed(2) }}</span>
+              </div>
+              <div class="invoice-details-row" *ngIf="selectedInvoiceOrder.invoice.invoiceNotes">
+                <span class="inv-label">Notes</span>
+                <span class="inv-value">{{ selectedInvoiceOrder.invoice.invoiceNotes }}</span>
+              </div>
+            </div>
+
+            <div class="invoice-items-section">
+              <h4>New Order Items</h4>
+              <div class="inv-item-row" *ngFor="let item of (selectedInvoiceOrder.newItems || [])">
+                <span>{{ item.name }}</span>
+                <span>× {{ item.quantity }}</span>
+                <span>${{ (item.price * item.quantity).toFixed(2) }}</span>
+              </div>
+
+              <ng-container *ngIf="selectedInvoiceOrder.returnItems?.length">
+                <h4>Returned Items</h4>
+                <div class="inv-item-row return" *ngFor="let item of selectedInvoiceOrder.returnItems">
+                  <span>{{ item.name }}</span>
+                  <span>× {{ item.quantity }}</span>
+                  <span>-${{ (item.price * item.quantity).toFixed(2) }}</span>
+                </div>
+              </ng-container>
+
+              <div class="inv-totals">
+                <div class="inv-total-row">
+                  <span>Order Total</span>
+                  <strong>${{ (selectedInvoiceOrder.orderTotal || 0).toFixed(2) }}</strong>
+                </div>
+                <div class="inv-total-row" *ngIf="selectedInvoiceOrder.returnTotal">
+                  <span>Return Credit</span>
+                  <strong class="red">-${{ (selectedInvoiceOrder.returnTotal || 0).toFixed(2) }}</strong>
+                </div>
+                <div class="inv-total-row final">
+                  <span>Final Amount</span>
+                  <strong>${{ (selectedInvoiceOrder.finalAmount || 0).toFixed(2) }}</strong>
+                </div>
+              </div>
+            </div>
+
+          </ng-container>
+
+          <!-- ── Invoice form: create / edit ── -->
+          <ng-container *ngIf="!invoiceSaved">
+
+            <label>Payment Method</label>
+            <select [(ngModel)]="invoiceData.paymentMethod">
+              <option value="Cash">Cash</option>
+              <option value="Check">Check</option>
+            </select>
+
+            <div *ngIf="invoiceData.paymentMethod === 'Check'">
+              <label>Check Number</label>
+              <input
+                type="text"
+                placeholder="Enter check number"
+                [(ngModel)]="invoiceData.checkNumber"
+              />
+            </div>
+
+            <label>Amount Paid</label>
+            <input type="number" [(ngModel)]="invoiceData.amountPaid" />
+
+            <label>Invoice Notes</label>
+            <textarea
+              placeholder="Example: Paid by store manager after delivery"
+              [(ngModel)]="invoiceData.invoiceNotes"
+            ></textarea>
+
+          </ng-container>
 
           <div class="invoice-actions">
-            <button class="save-order-btn" (click)="saveInvoice()">
+            <button
+              *ngIf="!invoiceSaved"
+              class="save-order-btn"
+              (click)="saveInvoice()"
+            >
               Save Invoice
             </button>
 
-            <button class="delete-btn" (click)="closeInvoice()">
-              Cancel
+            <button
+              *ngIf="invoiceSaved"
+              class="email-invoice-btn"
+              (click)="emailInvoice()"
+            >
+              📧 Email Invoice
             </button>
           </div>
+
         </div>
       </div>
     </div>
@@ -270,6 +374,11 @@
           <input type="text" [(ngModel)]="newStore.phone" />
         </div>
 
+        <div class="floating-group">
+          <label>Email ID</label>
+          <input type="email" [(ngModel)]="newStore.email" />
+        </div>
+
         <button class="save-order-btn" (click)="addStore()">
           {{ isStoreEditMode ? 'Update Store' : 'Add Store' }}
         </button>
@@ -283,6 +392,7 @@
           <p>{{ store.storeAddress }}</p>
           <p>Owner: {{ store.ownerName }}</p>
           <p>Phone: {{ store.phone }}</p>
+          <p>Email: {{ store.email }}</p>
 
           <button class="edit-btn" (click)="editStore(store)">Edit</button>
           <button class="delete-btn" (click)="deleteStore(store.id)">Delete</button>

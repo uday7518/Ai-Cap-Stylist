@@ -1,12 +1,14 @@
 import { ChangeDetectorRef, Component, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { signOut } from 'firebase/auth';
 import { firebaseAuth } from '../../firebase.config';
 import { FirebaseOrder } from '../../services/firebase-order';
 import { FirebaseProduct } from '../../services/firebase-product';
 import { FirebaseStore } from '../../services/firebase-store';
+import { InvoicePdfService } from '../../services/invoice-pdf';
 
 const emptyCap = () => ({
   name: '',
@@ -47,6 +49,8 @@ export class Admin {
   };
 
   selectedInvoiceOrder: any = null;
+  invoiceSaved = false;
+  savedInvoicePayload: any = null;
 
   invoiceData: any = {
     paymentMethod: 'Cash',
@@ -60,7 +64,8 @@ export class Admin {
     storeName: '',
     storeAddress: '',
     ownerName: '',
-    phone: ''
+    phone: '',
+    email: ''
   };
 
   isStoreEditMode = false;
@@ -69,6 +74,8 @@ export class Admin {
     private productService: FirebaseProduct,
     private storeService: FirebaseStore,
     private orderService: FirebaseOrder,
+    private invoicePdfService: InvoicePdfService,
+    private http: HttpClient,
     private cdr: ChangeDetectorRef,
     private router: Router
   ) {
@@ -299,6 +306,7 @@ export class Admin {
       storeAddress: selectedStore?.storeAddress,
       ownerName: selectedStore?.ownerName,
       phone: selectedStore?.phone,
+      email: selectedStore?.email,
 
       newItems: this.newOrder.newItems,
       returnItems: this.newOrder.returnItems,
@@ -353,16 +361,38 @@ export class Admin {
   openInvoice(order: any) {
     this.selectedInvoiceOrder = order;
 
-    this.invoiceData = {
-      paymentMethod: 'Cash',
-      checkNumber: '',
-      amountPaid: order.finalAmount || order.total || 0,
-      invoiceNotes: ''
-    };
+    if (order.invoice) {
+      // Invoice already saved in DB — pre-fill and lock the form
+      this.invoiceSaved = true;
+      this.savedInvoicePayload = { invoice: order.invoice, status: order.status };
+      this.invoiceData = {
+        paymentMethod: order.invoice.paymentMethod || 'Cash',
+        checkNumber: order.invoice.checkNumber || '',
+        amountPaid: Number((order.finalAmount || order.total || 0).toFixed(2)),
+        invoiceNotes: order.invoice.invoiceNotes || ''
+      };
+    } else {
+      this.invoiceSaved = false;
+      this.savedInvoicePayload = null;
+      this.invoiceData = {
+        paymentMethod: 'Cash',
+        checkNumber: '',
+        amountPaid: Number((order.finalAmount || order.total || 0).toFixed(2)),
+        invoiceNotes: ''
+      };
+    }
+  }
+
+  editInvoice() {
+    this.invoiceSaved = false;
+    this.savedInvoicePayload = null;
+    this.cdr.detectChanges();
   }
 
   closeInvoice() {
     this.selectedInvoiceOrder = null;
+    this.invoiceSaved = false;
+    this.savedInvoicePayload = null;
 
     this.invoiceData = {
       paymentMethod: 'Cash',
@@ -390,6 +420,7 @@ export class Admin {
 
     const invoicePayload = {
       invoice: {
+        invoiceNumber: `INV-${Date.now()}`,
         paymentMethod: this.invoiceData.paymentMethod,
         checkNumber:
           this.invoiceData.paymentMethod === 'Check'
@@ -408,12 +439,46 @@ export class Admin {
         invoicePayload
       );
 
-      alert('Invoice saved successfully!');
-      this.closeInvoice();
+      this.savedInvoicePayload = invoicePayload;
+      this.invoiceSaved = true;
+      this.cdr.detectChanges();
     } catch (error) {
       console.error('Invoice save error:', error);
       alert('Something went wrong while saving invoice');
     }
+  }
+
+  emailInvoice() {
+    if (!this.selectedInvoiceOrder || !this.savedInvoicePayload) return;
+
+    const orderForPdf = {
+      ...this.selectedInvoiceOrder,
+      ...this.savedInvoicePayload
+    };
+
+    const toEmail = this.selectedInvoiceOrder.email;
+
+    // Close the modal immediately
+    this.closeInvoice();
+
+    // Generate base64 and email to the store
+    const { base64, invoiceNumber } = this.invoicePdfService.generateInvoiceBase64(orderForPdf);
+
+    this.http
+      .post('http://localhost:3000/send-invoice', {
+        order: orderForPdf,
+        pdfBase64: base64,
+        invoiceNumber
+      })
+      .subscribe({
+        next: () => {
+          alert(`Invoice emailed to ${toEmail} successfully!`);
+        },
+        error: (err) => {
+          console.error('Email send error:', err);
+          alert('Email could not be sent. Check backend settings.');
+        }
+      });
   }
 
   async addStore() {
@@ -421,7 +486,8 @@ export class Admin {
       !this.newStore.storeName ||
       !this.newStore.storeAddress ||
       !this.newStore.ownerName ||
-      !this.newStore.phone
+      !this.newStore.phone ||
+      !this.newStore.email
     ) {
       alert('Please fill all store fields');
       return;
@@ -461,7 +527,8 @@ export class Admin {
       storeName: '',
       storeAddress: '',
       ownerName: '',
-      phone: ''
+      phone: '',
+      email: ''
     };
 
     this.isStoreEditMode = false;

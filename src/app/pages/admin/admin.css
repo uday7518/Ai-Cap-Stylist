@@ -492,6 +492,19 @@
   padding: 12px;
 }
 
+.order-card-invoice-number {
+  display: inline-block;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
 .invoice-btn {
   width: 100%;
   border: none;
@@ -534,6 +547,234 @@
   padding: 13px 15px;
   border: 1px solid #d1d5db;
   border-radius: 12px;
+}
+
+/* ── Invoice modal header with X close button ── */
+.invoice-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.invoice-modal-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.close-x-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
+}
+
+.close-x-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* ── Store info block ── */
+.invoice-store-info {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+
+.invoice-store-info p {
+  margin: 4px 0;
+  color: #334155;
+  font-size: 14px;
+}
+
+/* ── View Invoice button on order card ── */
+.view-invoice-btn {
+  width: 100%;
+  border: none;
+  background: #1d4ed8;
+  color: white;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 800;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.view-invoice-btn:hover {
+  background: #1e40af;
+}
+
+/* ── Saved confirmation banner ── */
+.invoice-saved-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.edit-invoice-link {
+  border: none;
+  background: transparent;
+  color: #1d4ed8;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.edit-invoice-link:hover {
+  color: #1e40af;
+}
+
+/* ── Invoice details card (view mode) ── */
+.invoice-details-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.invoice-details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.inv-label {
+  color: #64748b;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.inv-value {
+  color: #1e293b;
+  font-weight: 700;
+  text-align: right;
+}
+
+.inv-amount {
+  color: #16a34a;
+  font-size: 16px;
+}
+
+/* ── Invoice items section ── */
+.invoice-items-section {
+  margin-bottom: 8px;
+}
+
+.invoice-items-section h4 {
+  font-size: 13px;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 14px 0 8px;
+}
+
+.inv-item-row {
+  display: flex;
+  justify-content: space-between;
+  background: #f1f5f9;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.inv-item-row.return {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.inv-totals {
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inv-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #475569;
+}
+
+.inv-total-row.final {
+  font-size: 15px;
+  color: #0f172a;
+  font-weight: 800;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.inv-total-row .red {
+  color: #dc2626;
+}
+
+/* ── Disabled field styling ── */
+.invoice-box select:disabled,
+.invoice-box input:disabled,
+.invoice-box textarea:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* ── Save button saved state ── */
+.save-order-btn.saved {
+  background: #86efac;
+  color: #15803d;
+  cursor: not-allowed;
+}
+
+/* ── Email invoice button ── */
+.email-invoice-btn {
+  border: none;
+  background: #0f766e;
+  color: white;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.email-invoice-btn:hover {
+  background: #0d9488;
 }
 
 .invoice-actions {
