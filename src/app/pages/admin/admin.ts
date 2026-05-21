@@ -40,6 +40,121 @@ export class Admin {
   orders: any[] = [];
   stores: any[] = [];
 
+  // Store filter for Orders tab
+  selectedStoreFilter: any = null;
+  storeSearchQuery = '';
+  storeStatusFilter = 'All';
+  historyFilter: 'last5' | 'last7' | 'last30' | 'all' | 'date' | 'range' = 'last5';
+  historyDateSingle = '';
+  historyDateFrom = '';
+  historyDateTo = '';
+
+  readonly orderStatuses = ['All', 'Pending', 'Confirmed', 'Packed', 'Delivered', 'Cancelled'];
+
+  get filteredStores(): any[] {
+    return this.stores.filter(store => {
+      const query = this.storeSearchQuery.toLowerCase();
+      const matchesSearch =
+        !query ||
+        store.storeName?.toLowerCase().includes(query) ||
+        store.ownerName?.toLowerCase().includes(query) ||
+        store.email?.toLowerCase().includes(query);
+
+      const storeOrders = this.orders.filter(o => o.storeId === store.id);
+      const matchesStatus =
+        this.storeStatusFilter === 'All' ||
+        storeOrders.some(o => (o.status || 'Pending') === this.storeStatusFilter);
+
+      return matchesSearch && matchesStatus;
+    });
+  }
+
+  get storeFilteredOrders(): any[] {
+    if (!this.selectedStoreFilter) return [];
+    return this.orders.filter(o => o.storeId === this.selectedStoreFilter.id);
+  }
+
+  get pendingOrders(): any[] {
+    return this.storeFilteredOrders.filter(o => (o.status || 'Pending') === 'Pending');
+  }
+
+  get nonPendingOrders(): any[] {
+    return this.storeFilteredOrders.filter(o => o.status && o.status !== 'Pending');
+  }
+
+  private getOrderTimestamp(order: any): number {
+    if (!order.date) return 0;
+    if (order.date?.seconds) return order.date.seconds * 1000;
+    return new Date(order.date).getTime();
+  }
+
+  get filteredNonPendingOrders(): any[] {
+    // Always sort newest first
+    const sorted = [...this.nonPendingOrders].sort(
+      (a, b) => this.getOrderTimestamp(b) - this.getOrderTimestamp(a)
+    );
+
+    if (this.historyFilter === 'last5') return sorted.slice(0, 5);
+
+    if (this.historyFilter === 'last7' || this.historyFilter === 'last30') {
+      const days = this.historyFilter === 'last7' ? 7 : 30;
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+      return sorted.filter(o => this.getOrderTimestamp(o) >= cutoff);
+    }
+
+    if (this.historyFilter === 'date' && this.historyDateSingle) {
+      const start = new Date(this.historyDateSingle);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(this.historyDateSingle);
+      end.setHours(23, 59, 59, 999);
+      return sorted.filter(o => {
+        const ts = this.getOrderTimestamp(o);
+        return ts >= start.getTime() && ts <= end.getTime();
+      });
+    }
+
+    if (this.historyFilter === 'range') {
+      return sorted.filter(o => {
+        const ts = this.getOrderTimestamp(o);
+        const from = this.historyDateFrom
+          ? new Date(this.historyDateFrom + 'T00:00:00').getTime()
+          : 0;
+        const to = this.historyDateTo
+          ? new Date(this.historyDateTo + 'T23:59:59').getTime()
+          : Infinity;
+        return ts >= from && ts <= to;
+      });
+    }
+
+    return sorted; // 'all'
+  }
+
+  getOrderCountForStore(storeId: string): number {
+    return this.orders.filter(o => o.storeId === storeId).length;
+  }
+
+  getLatestOrderStatus(storeId: string): string {
+    const storeOrders = this.orders.filter(o => o.storeId === storeId);
+    if (!storeOrders.length) return 'No orders';
+    return storeOrders[storeOrders.length - 1].status || 'Pending';
+  }
+
+  selectStoreFilter(store: any) {
+    this.selectedStoreFilter = store;
+    this.historyFilter = 'last5';
+    this.historyDateSingle = '';
+    this.historyDateFrom = '';
+    this.historyDateTo = '';
+  }
+
+  clearStoreFilter() {
+    this.selectedStoreFilter = null;
+    this.historyFilter = 'last5';
+    this.historyDateSingle = '';
+    this.historyDateFrom = '';
+    this.historyDateTo = '';
+  }
+
   newOrder: any = {
     storeId: '',
     status: 'Pending',
@@ -69,6 +184,13 @@ export class Admin {
   };
 
   isStoreEditMode = false;
+
+  // ── Voice assistant ──
+  isListening = false;
+  voiceToastVisible = false;
+  voiceMessage = '';
+  voiceState: 'listening' | 'processing' | 'success' | 'error' = 'listening';
+  private recognition: any = null;
 
   constructor(
     private productService: FirebaseProduct,
@@ -138,6 +260,7 @@ export class Admin {
 
   setActiveTab(tab: string) {
     this.activeTab = tab;
+    if (tab !== 'orders') this.selectedStoreFilter = null;
   }
 
   get totalCaps() {
@@ -588,6 +711,235 @@ export class Admin {
   async deleteCap(cap: any) {
     await this.productService.deleteProduct(cap.id);
     this.resetForm();
+  }
+
+  // ── Voice assistant ──────────────────────────────────────
+
+  toggleVoice() {
+    if (this.isListening) {
+      this.stopListening();
+    } else {
+      this.startListening();
+    }
+  }
+
+  startListening() {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      alert('Voice recognition requires Chrome or Edge browser.');
+      return;
+    }
+
+    this.recognition = new SR();
+    this.recognition.lang = 'en-US';
+    this.recognition.interimResults = false;
+    this.recognition.maxAlternatives = 1;
+
+    this.isListening = true;
+    this.voiceState = 'listening';
+    this.voiceMessage = 'Listening… speak your command';
+    this.voiceToastVisible = true;
+    this.cdr.detectChanges();
+
+    this.recognition.start();
+
+    this.recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      this.voiceState = 'processing';
+      this.voiceMessage = `"${transcript}"`;
+      this.isListening = false;
+      this.cdr.detectChanges();
+      this.processVoiceCommand(transcript);
+    };
+
+    this.recognition.onerror = (event: any) => {
+      this.isListening = false;
+      this.voiceState = 'error';
+      this.voiceMessage = event.error === 'no-speech'
+        ? 'No speech detected — try again.'
+        : `Mic error: ${event.error}`;
+      this.cdr.detectChanges();
+      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3500);
+    };
+
+    this.recognition.onend = () => {
+      this.isListening = false;
+      this.cdr.detectChanges();
+    };
+  }
+
+  stopListening() {
+    if (this.recognition) {
+      this.recognition.stop();
+      this.recognition = null;
+    }
+    this.isListening = false;
+    this.voiceToastVisible = false;
+    this.cdr.detectChanges();
+  }
+
+  processVoiceCommand(transcript: string) {
+    this.http.post<any>('http://localhost:3000/voice-command', {
+      transcript,
+      stores: this.stores.map(s => ({ id: s.id, name: s.storeName, owner: s.ownerName })),
+      products: this.caps.map(p => ({ id: p.id, name: p.name, price: p.price }))
+    }).subscribe({
+      next: (action) => this.executeVoiceAction(action),
+      error: () => {
+        this.voiceState = 'error';
+        this.voiceMessage = 'Cannot reach backend — is the server running?';
+        this.cdr.detectChanges();
+        setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 4000);
+      }
+    });
+  }
+
+  executeVoiceAction(action: any) {
+    switch (action.action) {
+      case 'navigate':
+        this.setActiveTab(action.tab);
+        this.showVoiceSuccess(`Navigated to ${action.tab}`);
+        break;
+
+      case 'filter_store':
+        this.voiceGoToStore(action.storeName);
+        break;
+
+      case 'create_order':
+        this.voiceCreateOrder(action);
+        break;
+
+      case 'update_status':
+        this.voiceUpdateStatus(action);
+        break;
+
+      case 'send_invoice':
+        this.voiceSendInvoice(action.storeName);
+        break;
+
+      case 'unknown':
+      default:
+        this.voiceState = 'error';
+        this.voiceMessage = action.message || "I didn't understand that command.";
+        this.cdr.detectChanges();
+        setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 4000);
+    }
+  }
+
+  private showVoiceSuccess(message: string) {
+    this.voiceState = 'success';
+    this.voiceMessage = message;
+    this.cdr.detectChanges();
+    setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3500);
+  }
+
+  private findStore(name: string) {
+    const n = name.toLowerCase();
+    return this.stores.find(s =>
+      s.storeName?.toLowerCase().includes(n) || n.includes(s.storeName?.toLowerCase())
+    );
+  }
+
+  voiceGoToStore(storeName: string) {
+    const store = this.findStore(storeName);
+    if (store) {
+      this.setActiveTab('orders');
+      this.selectStoreFilter(store);
+      this.showVoiceSuccess(`✅ Showing orders for ${store.storeName}`);
+    } else {
+      this.voiceState = 'error';
+      this.voiceMessage = `Store "${storeName}" not found`;
+      this.cdr.detectChanges();
+      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
+    }
+  }
+
+  voiceCreateOrder(action: any) {
+    this.setActiveTab('addOrder');
+    this.newOrder = {
+      storeId: action.storeId || '',
+      status: 'Pending',
+      newItems: (action.items || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        price: Number(item.price),
+        quantity: Number(item.quantity)
+      })),
+      returnItems: (action.returnItems || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        price: Number(item.price),
+        quantity: Number(item.quantity)
+      })),
+      notes: action.notes || ''
+    };
+    const storeName = this.stores.find(s => s.id === action.storeId)?.storeName || action.storeName || 'store';
+    this.showVoiceSuccess(`✅ Order ready for ${storeName} — review & save`);
+    this.cdr.detectChanges();
+  }
+
+  voiceUpdateStatus(action: any) {
+    const store = this.findStore(action.storeName);
+    if (!store) {
+      this.voiceState = 'error';
+      this.voiceMessage = `Store "${action.storeName}" not found`;
+      this.cdr.detectChanges();
+      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
+      return;
+    }
+    const storeOrders = this.orders.filter(o => o.storeId === store.id);
+    if (!storeOrders.length) {
+      this.voiceState = 'error';
+      this.voiceMessage = `No orders found for ${store.storeName}`;
+      this.cdr.detectChanges();
+      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
+      return;
+    }
+    const latest = storeOrders[storeOrders.length - 1];
+    latest.status = action.status;
+    this.updateOrderStatus(latest);
+    this.showVoiceSuccess(`✅ ${store.storeName}'s order → ${action.status}`);
+  }
+
+  voiceSendInvoice(storeName: string) {
+    const store = this.findStore(storeName);
+    if (!store) {
+      this.voiceState = 'error';
+      this.voiceMessage = `Store "${storeName}" not found`;
+      this.cdr.detectChanges();
+      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
+      return;
+    }
+    const invoicedOrders = this.orders.filter(o => o.storeId === store.id && o.invoice);
+    if (!invoicedOrders.length) {
+      this.voiceState = 'error';
+      this.voiceMessage = `No saved invoice found for ${store.storeName}`;
+      this.cdr.detectChanges();
+      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
+      return;
+    }
+    const order = invoicedOrders[invoicedOrders.length - 1];
+    this.voiceState = 'processing';
+    this.voiceMessage = `Sending invoice to ${order.email}…`;
+    this.cdr.detectChanges();
+    this.sendInvoiceEmail(order);
+  }
+
+  sendInvoiceEmail(order: any) {
+    const { base64, invoiceNumber } = this.invoicePdfService.generateInvoiceBase64(order);
+    this.http.post('http://localhost:3000/send-invoice', {
+      order,
+      pdfBase64: base64,
+      invoiceNumber
+    }).subscribe({
+      next: () => this.showVoiceSuccess(`✅ Invoice sent to ${order.email}`),
+      error: () => {
+        this.voiceState = 'error';
+        this.voiceMessage = 'Failed to send invoice email';
+        this.cdr.detectChanges();
+        setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
+      }
+    });
   }
 
   logout() {

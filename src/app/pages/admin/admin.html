@@ -141,70 +141,223 @@
     </div>
 
     <div *ngIf="activeTab === 'orders'">
-      <h1>Store Orders</h1>
-      <p>View, update, and manage store orders.</p>
 
-      <div class="orders-grid">
-        <div class="order-card" *ngFor="let order of orders">
-          <div class="order-card-invoice-number" *ngIf="order.invoice?.invoiceNumber">
-            {{ order.invoice.invoiceNumber }}
+      <!-- ── Step 1: Store selector ── -->
+      <ng-container *ngIf="!selectedStoreFilter">
+        <h1>Store Orders</h1>
+        <p>Select a store to view and manage its orders.</p>
+
+        <div class="store-filter-bar">
+          <div class="store-search-wrap">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder="Search by store, owner or email..."
+              [(ngModel)]="storeSearchQuery"
+            />
           </div>
 
-          <div class="order-header">
-            <h3>{{ order.storeName }}</h3>
-            <span [class]="(order.status || 'Pending').toLowerCase()">
-              {{ order.status || 'Pending' }}
-            </span>
-          </div>
-
-          <p><strong>Owner:</strong> {{ order.ownerName }}</p>
-          <p><strong>Phone:</strong> {{ order.phone }}</p>
-          <p><strong>Email:</strong> {{ order.email || 'N/A' }}</p>
-          <p><strong>Address:</strong> {{ order.storeAddress }}</p>
-
-          <h4>New Order Products</h4>
-
-          <div class="order-item" *ngFor="let item of (order.newItems || order.selectedItems || [])">
-            <span>{{ item.name }}</span>
-            <span>Qty: {{ item.quantity }}</span>
-            <span>${{ (item.price * item.quantity).toFixed(2) }}</span>
-          </div>
-
-          <h4 *ngIf="order.returnItems?.length">Returned Products</h4>
-
-          <div class="order-item return-item" *ngFor="let item of order.returnItems">
-            <span>{{ item.name }}</span>
-            <span>Qty: {{ item.quantity }}</span>
-            <span>-${{ (item.price * item.quantity).toFixed(2) }}</span>
-          </div>
-
-          <p *ngIf="order.notes"><strong>Notes:</strong> {{ order.notes }}</p>
-
-          <h3 class="order-total">Total: ${{ (order.finalAmount || order.total || 0).toFixed(2) }}</h3>
-
-          <select [(ngModel)]="order.status" (change)="updateOrderStatus(order)">
-            <option value="Pending">Pending</option>
-            <option value="Confirmed">Confirmed</option>
-            <option value="Packed">Packed</option>
-            <option value="Delivered">Delivered</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-
-          <ng-container *ngIf="!order.invoice">
-            <button class="invoice-btn" (click)="openInvoice(order)">
-              Create Invoice
+          <div class="store-status-tabs">
+            <button
+              *ngFor="let status of orderStatuses"
+              [class.active]="storeStatusFilter === status"
+              (click)="storeStatusFilter = status"
+            >
+              {{ status }}
             </button>
-          </ng-container>
-
-          <button *ngIf="order.invoice" class="view-invoice-btn" (click)="openInvoice(order)">
-            📄 View Invoice Details
-          </button>
-
-          <button class="delete-btn" (click)="deleteOrder(order.id)">
-            Delete Order
-          </button>
+          </div>
         </div>
-      </div>
+
+        <p *ngIf="filteredStores.length === 0" class="no-orders-msg">
+          No stores match your search.
+        </p>
+
+        <div class="store-selector-grid">
+          <div
+            class="store-selector-card"
+            *ngFor="let store of filteredStores"
+            (click)="selectStoreFilter(store)"
+          >
+            <div class="store-selector-header">
+              <div class="store-selector-avatar">{{ store.storeName[0].toUpperCase() }}</div>
+              <div>
+                <h3>{{ store.storeName }}</h3>
+                <p>{{ store.ownerName }}</p>
+              </div>
+            </div>
+
+            <div class="store-selector-meta">
+              <span>📦 {{ getOrderCountForStore(store.id) }} orders</span>
+              <span
+                class="store-selector-status"
+                [class]="getLatestOrderStatus(store.id).toLowerCase()"
+              >
+                {{ getLatestOrderStatus(store.id) }}
+              </span>
+            </div>
+
+            <div class="store-selector-info">
+              <span>📞 {{ store.phone }}</span>
+              <span>✉️ {{ store.email }}</span>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ── Step 2: Orders for selected store ── -->
+      <ng-container *ngIf="selectedStoreFilter">
+        <div class="orders-store-header">
+          <button class="back-btn" (click)="clearStoreFilter()">← All Stores</button>
+          <div>
+            <h1>{{ selectedStoreFilter.storeName }}</h1>
+            <p>{{ selectedStoreFilter.ownerName }} &nbsp;·&nbsp; {{ selectedStoreFilter.email }}</p>
+          </div>
+        </div>
+
+        <div *ngIf="storeFilteredOrders.length === 0" class="no-orders-msg">
+          No orders found for this store yet.
+        </div>
+
+        <!-- ── Pending orders — Card view ── -->
+        <ng-container *ngIf="pendingOrders.length > 0">
+          <div class="order-section-label">
+            <span class="section-dot pending-dot"></span>
+            Pending Orders
+            <span class="section-count">{{ pendingOrders.length }}</span>
+          </div>
+
+          <div class="orders-grid">
+            <div class="order-card" *ngFor="let order of pendingOrders">
+              <div class="order-card-invoice-number" *ngIf="order.invoice?.invoiceNumber">
+                {{ order.invoice.invoiceNumber }}
+              </div>
+
+              <div class="order-header">
+                <h3>{{ order.storeName }}</h3>
+                <span [class]="(order.status || 'Pending').toLowerCase()">
+                  {{ order.status || 'Pending' }}
+                </span>
+              </div>
+
+              <p><strong>Owner:</strong> {{ order.ownerName }}</p>
+              <p><strong>Phone:</strong> {{ order.phone }}</p>
+              <p><strong>Email:</strong> {{ order.email || 'N/A' }}</p>
+              <p><strong>Address:</strong> {{ order.storeAddress }}</p>
+
+              <h4>New Order Products</h4>
+              <div class="order-item" *ngFor="let item of (order.newItems || [])">
+                <span>{{ item.name }}</span>
+                <span>Qty: {{ item.quantity }}</span>
+                <span>${{ (item.price * item.quantity).toFixed(2) }}</span>
+              </div>
+
+              <h4 *ngIf="order.returnItems?.length">Returned Products</h4>
+              <div class="order-item return-item" *ngFor="let item of order.returnItems">
+                <span>{{ item.name }}</span>
+                <span>Qty: {{ item.quantity }}</span>
+                <span>-${{ (item.price * item.quantity).toFixed(2) }}</span>
+              </div>
+
+              <p *ngIf="order.notes"><strong>Notes:</strong> {{ order.notes }}</p>
+              <h3 class="order-total">Total: ${{ (order.finalAmount || order.total || 0).toFixed(2) }}</h3>
+
+              <select [(ngModel)]="order.status" (change)="updateOrderStatus(order)">
+                <option value="Pending">Pending</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Packed">Packed</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+
+              <ng-container *ngIf="!order.invoice">
+                <button class="invoice-btn" (click)="openInvoice(order)">Create Invoice</button>
+              </ng-container>
+              <button *ngIf="order.invoice" class="view-invoice-btn" (click)="openInvoice(order)">
+                📄 View Invoice Details
+              </button>
+              <button class="delete-btn" (click)="deleteOrder(order.id)">Delete Order</button>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ── Non-pending orders — List view ── -->
+        <ng-container *ngIf="nonPendingOrders.length > 0">
+          <div class="order-section-label" style="margin-top:32px">
+            <span class="section-dot delivered-dot"></span>
+            Order History
+            <span class="section-count">{{ filteredNonPendingOrders.length }} / {{ nonPendingOrders.length }}</span>
+
+            <div class="history-filter-tabs">
+              <button [class.active]="historyFilter === 'last5'" (click)="historyFilter = 'last5'">Last 5</button>
+              <button [class.active]="historyFilter === 'last7'" (click)="historyFilter = 'last7'">7 Days</button>
+              <button [class.active]="historyFilter === 'last30'" (click)="historyFilter = 'last30'">30 Days</button>
+              <button [class.active]="historyFilter === 'date'" (click)="historyFilter = 'date'">📅 Date</button>
+              <button [class.active]="historyFilter === 'range'" (click)="historyFilter = 'range'">📆 Range</button>
+              <button [class.active]="historyFilter === 'all'" (click)="historyFilter = 'all'">All</button>
+            </div>
+          </div>
+
+          <!-- ── Specific date picker ── -->
+          <div class="history-date-row" *ngIf="historyFilter === 'date'">
+            <label>Select Date</label>
+            <input type="date" [(ngModel)]="historyDateSingle" class="history-date-input" />
+          </div>
+
+          <!-- ── Date range picker ── -->
+          <div class="history-date-row" *ngIf="historyFilter === 'range'">
+            <label>From</label>
+            <input type="date" [(ngModel)]="historyDateFrom" class="history-date-input" />
+            <span class="history-range-sep">→</span>
+            <label>To</label>
+            <input type="date" [(ngModel)]="historyDateTo" class="history-date-input" />
+          </div>
+
+          <div class="order-list">
+            <div class="order-list-row" *ngFor="let order of filteredNonPendingOrders">
+
+              <div class="order-list-left">
+                <div class="order-list-inv" *ngIf="order.invoice?.invoiceNumber">
+                  {{ order.invoice.invoiceNumber }}
+                </div>
+                <div class="order-list-inv no-inv" *ngIf="!order.invoice?.invoiceNumber">
+                  No Invoice
+                </div>
+                <div class="order-list-items">
+                  <span *ngFor="let item of (order.newItems || []); let last = last">
+                    {{ item.name }} ×{{ item.quantity }}{{ last ? '' : ', ' }}
+                  </span>
+                </div>
+                <div class="order-list-date" *ngIf="order.date">
+                  {{ (order.date?.seconds ? order.date.seconds * 1000 : order.date) | date:'MMM d, y' }}
+                </div>
+              </div>
+
+              <div class="order-list-center">
+                <span class="order-list-total">${{ (order.finalAmount || order.total || 0).toFixed(2) }}</span>
+              </div>
+
+              <div class="order-list-right">
+                <select [(ngModel)]="order.status" (change)="updateOrderStatus(order)" class="order-list-select">
+                  <option value="Pending">Pending</option>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="Packed">Packed</option>
+                  <option value="Delivered">Delivered</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+
+                <button *ngIf="!order.invoice" class="invoice-btn list-btn" (click)="openInvoice(order)">
+                  Create Invoice
+                </button>
+                <button *ngIf="order.invoice" class="view-invoice-btn list-btn" (click)="openInvoice(order)">
+                  📄 Invoice
+                </button>
+                <button class="delete-btn list-btn" (click)="deleteOrder(order.id)">Delete</button>
+              </div>
+
+            </div>
+          </div>
+        </ng-container>
+      </ng-container>
 
       <div class="invoice-modal" *ngIf="selectedInvoiceOrder">
         <div class="invoice-box">
@@ -520,4 +673,23 @@
       </div>
     </div>
   </main>
+
+  <!-- ── Voice Assistant ── -->
+  <button
+    class="voice-mic-btn"
+    [class.listening]="isListening"
+    (click)="toggleVoice()"
+    [title]="isListening ? 'Stop listening' : 'Voice Command'"
+  >
+    {{ isListening ? '⏹' : '🎙️' }}
+  </button>
+
+  <div class="voice-toast" *ngIf="voiceToastVisible" [ngClass]="'voice-toast--' + voiceState">
+    <span class="voice-toast-icon" [class.pulse]="voiceState === 'listening' || voiceState === 'processing'">
+      {{ voiceState === 'listening' ? '🎙️' : voiceState === 'processing' ? '⚡' : voiceState === 'success' ? '✅' : '❌' }}
+    </span>
+    <span class="voice-toast-text">{{ voiceMessage }}</span>
+    <button class="voice-toast-close" (click)="voiceToastVisible = false">✕</button>
+  </div>
+
 </div>

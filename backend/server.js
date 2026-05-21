@@ -222,7 +222,7 @@ app.post("/send-invoice", async (req, res) => {
     `;
 
     await transporter.sendMail({
-      from: `"AI Cap Stylist" <${process.env.BREVO_USER}>`,
+      from: `"AI Cap Stylist" <${process.env.BREVO_SENDER}>`,
       to: order.email,
       subject: `Invoice ${invoiceNumber} — AI Cap Stylist`,
       html: emailHtml,
@@ -240,6 +240,72 @@ app.post("/send-invoice", async (req, res) => {
   } catch (error) {
     console.error("❌ Email send error:", error.message);
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/voice-command", async (req, res) => {
+  try {
+    const { transcript, stores, products } = req.body;
+
+    const storeList = (stores || [])
+      .map(s => `  - id: "${s.id}", name: "${s.name}", owner: "${s.owner}"`)
+      .join("\n");
+
+    const productList = (products || [])
+      .map(p => `  - id: "${p.id}", name: "${p.name}", price: ${p.price}`)
+      .join("\n");
+
+    const systemPrompt = `You are a voice assistant for a cap distribution admin panel.
+Parse the user's spoken command and return a SINGLE valid JSON object (no markdown).
+
+AVAILABLE STORES:
+${storeList || "  (none)"}
+
+AVAILABLE PRODUCTS:
+${productList || "  (none)"}
+
+AVAILABLE ACTIONS — return exactly one:
+
+1. Navigate to a tab:
+   { "action": "navigate", "tab": "dashboard|inventory|orders|stores|addOrder" }
+
+2. Show a specific store's orders:
+   { "action": "filter_store", "storeName": "<exact or partial store name>" }
+
+3. Create / pre-fill a new order:
+   { "action": "create_order", "storeId": "<id>", "storeName": "<name>",
+     "items": [{ "id": "<productId>", "name": "<name>", "price": <price>, "quantity": <qty> }],
+     "returnItems": [] }
+
+4. Update the latest order status for a store:
+   { "action": "update_status", "storeName": "<name>", "status": "Pending|Confirmed|Packed|Delivered|Cancelled" }
+
+5. Email the latest invoice for a store:
+   { "action": "send_invoice", "storeName": "<name>" }
+
+6. Cannot understand:
+   { "action": "unknown", "message": "<brief explanation>" }
+
+Rules:
+- Match store names and product names loosely (case-insensitive, partial match is fine).
+- If the user says "go to orders" → navigate to orders tab.
+- Return ONLY the JSON object. No explanation, no markdown.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: transcript },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const action = JSON.parse(response.choices[0].message.content.trim());
+    console.log(`🎙️ Voice: "${transcript}" → action: ${action.action}`);
+    res.json(action);
+  } catch (error) {
+    console.error("Voice command error:", error.message);
+    res.status(500).json({ action: "unknown", message: "Server error processing command." });
   }
 });
 
