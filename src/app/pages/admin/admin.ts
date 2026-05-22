@@ -263,19 +263,46 @@ export class Admin {
     if (tab !== 'orders') this.selectedStoreFilter = null;
   }
 
-  get totalCaps() {
-    return this.caps.length;
+  readonly today = new Date();
+
+  get todayGreeting() {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
   }
 
+  get totalCaps() { return this.caps.length; }
   get totalStock() {
-    return this.caps.reduce((total, cap) => total + Number(cap.stock || 0), 0);
+    return this.caps.reduce((t, c) => t + Number(c.stock || 0), 0);
   }
-
   get totalInventoryValue() {
-    return this.caps.reduce(
-      (total, cap) => total + Number(cap.price || 0) * Number(cap.stock || 0),
-      0
-    );
+    return this.caps.reduce((t, c) => t + Number(c.price || 0) * Number(c.stock || 0), 0);
+  }
+  get totalStores() { return this.stores.length; }
+  get totalOrders() { return this.orders.length; }
+  get pendingOrdersCount() {
+    return this.orders.filter(o => (o.status || 'Pending') === 'Pending').length;
+  }
+  get confirmedOrdersCount() {
+    return this.orders.filter(o => o.status === 'Confirmed').length;
+  }
+  get packedOrdersCount() {
+    return this.orders.filter(o => o.status === 'Packed').length;
+  }
+  get deliveredOrdersCount() {
+    return this.orders.filter(o => o.status === 'Delivered').length;
+  }
+  get cancelledOrdersCount() {
+    return this.orders.filter(o => o.status === 'Cancelled').length;
+  }
+  get totalRevenue() {
+    return this.orders
+      .filter(o => o.status === 'Delivered')
+      .reduce((t, o) => t + Number(o.finalAmount || o.total || 0), 0);
+  }
+  get recentOrders() {
+    return [...this.orders]
+      .sort((a, b) => this.getOrderTimestamp(b) - this.getOrderTimestamp(a))
+      .slice(0, 5);
   }
 
   canAddOrderItems() {
@@ -713,12 +740,15 @@ export class Admin {
     this.resetForm();
   }
 
-  // ── Voice assistant ──────────────────────────────────────
+  // ── Voice assistant (continuous mode) ───────────────────
+
+  private continuousMode = false;
 
   toggleVoice() {
-    if (this.isListening) {
+    if (this.continuousMode) {
       this.stopListening();
     } else {
+      this.continuousMode = true;
       this.startListening();
     }
   }
@@ -754,12 +784,16 @@ export class Admin {
 
     this.recognition.onerror = (event: any) => {
       this.isListening = false;
+      if (event.error === 'aborted') return;
+      if (event.error === 'no-speech') {
+        // No speech — restart silently if continuous
+        this.restartOrClose(800);
+        return;
+      }
       this.voiceState = 'error';
-      this.voiceMessage = event.error === 'no-speech'
-        ? 'No speech detected — try again.'
-        : `Mic error: ${event.error}`;
+      this.voiceMessage = `Mic error: ${event.error}`;
       this.cdr.detectChanges();
-      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3500);
+      this.restartOrClose(3000);
     };
 
     this.recognition.onend = () => {
@@ -769,6 +803,7 @@ export class Admin {
   }
 
   stopListening() {
+    this.continuousMode = false;
     if (this.recognition) {
       this.recognition.stop();
       this.recognition = null;
@@ -778,9 +813,23 @@ export class Admin {
     this.cdr.detectChanges();
   }
 
+  /** After showing a result, either restart mic or close toast */
+  private restartOrClose(delay = 2200) {
+    setTimeout(() => {
+      if (this.continuousMode) {
+        this.startListening();
+      } else {
+        this.voiceToastVisible = false;
+        this.cdr.detectChanges();
+      }
+    }, delay);
+  }
+
   processVoiceCommand(transcript: string) {
     this.http.post<any>('http://localhost:3000/voice-command', {
       transcript,
+      activeTab: this.activeTab,
+      currentOrderStoreId: this.newOrder.storeId || '',
       stores: this.stores.map(s => ({ id: s.id, name: s.storeName, owner: s.ownerName })),
       products: this.caps.map(p => ({ id: p.id, name: p.name, price: p.price }))
     }).subscribe({
@@ -789,7 +838,7 @@ export class Admin {
         this.voiceState = 'error';
         this.voiceMessage = 'Cannot reach backend — is the server running?';
         this.cdr.detectChanges();
-        setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 4000);
+        this.restartOrClose(4000);
       }
     });
   }
@@ -803,6 +852,34 @@ export class Admin {
 
       case 'filter_store':
         this.voiceGoToStore(action.storeName);
+        break;
+
+      case 'clear_store_filter':
+        this.clearStoreFilter();
+        this.showVoiceSuccess('✅ Showing all stores');
+        break;
+
+      case 'select_store_for_order':
+        this.newOrder.storeId = action.storeId;
+        this.showVoiceSuccess(`✅ Selected ${action.storeName} — now add items`);
+        break;
+
+      case 'add_order_items':
+        this.voiceAddOrderItems(action.items || []);
+        break;
+
+      case 'add_return_items':
+        this.voiceAddReturnItems(action.items || []);
+        break;
+
+      case 'save_order':
+        this.showVoiceSuccess('✅ Saving order…');
+        setTimeout(() => this.saveOrder(), 400);
+        break;
+
+      case 'clear_order':
+        this.newOrder = { storeId: '', status: 'Pending', newItems: [], returnItems: [], notes: '' };
+        this.showVoiceSuccess('✅ Order form cleared');
         break;
 
       case 'create_order':
@@ -820,17 +897,64 @@ export class Admin {
       case 'unknown':
       default:
         this.voiceState = 'error';
-        this.voiceMessage = action.message || "I didn't understand that command.";
+        this.voiceMessage = action.message || "I didn't understand that. Try again.";
         this.cdr.detectChanges();
-        setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 4000);
+        this.restartOrClose(3000);
     }
+  }
+
+  voiceAddOrderItems(items: any[]) {
+    if (!this.newOrder.storeId) {
+      this.showVoiceError('Please select a store first');
+      return;
+    }
+    items.forEach((item: any) => {
+      const existing = this.newOrder.newItems.find((i: any) => i.id === item.id);
+      if (existing) {
+        existing.quantity += Number(item.quantity);
+      } else {
+        this.newOrder.newItems.push({
+          id: item.id, name: item.name,
+          price: Number(item.price), quantity: Number(item.quantity)
+        });
+      }
+    });
+    const summary = items.map((i: any) => `${i.quantity}× ${i.name}`).join(', ');
+    this.showVoiceSuccess(`✅ Added: ${summary}`);
+  }
+
+  voiceAddReturnItems(items: any[]) {
+    if (!this.newOrder.storeId) {
+      this.showVoiceError('Please select a store first');
+      return;
+    }
+    items.forEach((item: any) => {
+      const existing = this.newOrder.returnItems.find((i: any) => i.id === item.id);
+      if (existing) {
+        existing.quantity += Number(item.quantity);
+      } else {
+        this.newOrder.returnItems.push({
+          id: item.id, name: item.name,
+          price: Number(item.price), quantity: Number(item.quantity)
+        });
+      }
+    });
+    const summary = items.map((i: any) => `${i.quantity}× ${i.name}`).join(', ');
+    this.showVoiceSuccess(`✅ Return added: ${summary}`);
   }
 
   private showVoiceSuccess(message: string) {
     this.voiceState = 'success';
     this.voiceMessage = message;
     this.cdr.detectChanges();
-    setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3500);
+    this.restartOrClose(2200);
+  }
+
+  private showVoiceError(message: string, delay = 3000) {
+    this.voiceState = 'error';
+    this.voiceMessage = message;
+    this.cdr.detectChanges();
+    this.restartOrClose(delay);
   }
 
   private findStore(name: string) {
@@ -847,10 +971,7 @@ export class Admin {
       this.selectStoreFilter(store);
       this.showVoiceSuccess(`✅ Showing orders for ${store.storeName}`);
     } else {
-      this.voiceState = 'error';
-      this.voiceMessage = `Store "${storeName}" not found`;
-      this.cdr.detectChanges();
-      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
+      this.showVoiceError(`Store "${storeName}" not found`);
     }
   }
 
@@ -873,28 +994,19 @@ export class Admin {
       })),
       notes: action.notes || ''
     };
-    const storeName = this.stores.find(s => s.id === action.storeId)?.storeName || action.storeName || 'store';
+    const storeName = this.stores.find(s => s.id === action.storeId)?.storeName
+      || action.storeName || 'store';
     this.showVoiceSuccess(`✅ Order ready for ${storeName} — review & save`);
     this.cdr.detectChanges();
   }
 
   voiceUpdateStatus(action: any) {
     const store = this.findStore(action.storeName);
-    if (!store) {
-      this.voiceState = 'error';
-      this.voiceMessage = `Store "${action.storeName}" not found`;
-      this.cdr.detectChanges();
-      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
-      return;
-    }
+    if (!store) { this.showVoiceError(`Store "${action.storeName}" not found`); return; }
+
     const storeOrders = this.orders.filter(o => o.storeId === store.id);
-    if (!storeOrders.length) {
-      this.voiceState = 'error';
-      this.voiceMessage = `No orders found for ${store.storeName}`;
-      this.cdr.detectChanges();
-      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
-      return;
-    }
+    if (!storeOrders.length) { this.showVoiceError(`No orders found for ${store.storeName}`); return; }
+
     const latest = storeOrders[storeOrders.length - 1];
     latest.status = action.status;
     this.updateOrderStatus(latest);
@@ -903,21 +1015,14 @@ export class Admin {
 
   voiceSendInvoice(storeName: string) {
     const store = this.findStore(storeName);
-    if (!store) {
-      this.voiceState = 'error';
-      this.voiceMessage = `Store "${storeName}" not found`;
-      this.cdr.detectChanges();
-      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
-      return;
-    }
+    if (!store) { this.showVoiceError(`Store "${storeName}" not found`); return; }
+
     const invoicedOrders = this.orders.filter(o => o.storeId === store.id && o.invoice);
     if (!invoicedOrders.length) {
-      this.voiceState = 'error';
-      this.voiceMessage = `No saved invoice found for ${store.storeName}`;
-      this.cdr.detectChanges();
-      setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
+      this.showVoiceError(`No saved invoice found for ${store.storeName}`);
       return;
     }
+
     const order = invoicedOrders[invoicedOrders.length - 1];
     this.voiceState = 'processing';
     this.voiceMessage = `Sending invoice to ${order.email}…`;
@@ -933,12 +1038,7 @@ export class Admin {
       invoiceNumber
     }).subscribe({
       next: () => this.showVoiceSuccess(`✅ Invoice sent to ${order.email}`),
-      error: () => {
-        this.voiceState = 'error';
-        this.voiceMessage = 'Failed to send invoice email';
-        this.cdr.detectChanges();
-        setTimeout(() => { this.voiceToastVisible = false; this.cdr.detectChanges(); }, 3000);
-      }
+      error: () => this.showVoiceError('Failed to send invoice email')
     });
   }
 

@@ -245,7 +245,7 @@ app.post("/send-invoice", async (req, res) => {
 
 app.post("/voice-command", async (req, res) => {
   try {
-    const { transcript, stores, products } = req.body;
+    const { transcript, stores, products, activeTab, currentOrderStoreId } = req.body;
 
     const storeList = (stores || [])
       .map(s => `  - id: "${s.id}", name: "${s.name}", owner: "${s.owner}"`)
@@ -258,37 +258,61 @@ app.post("/voice-command", async (req, res) => {
     const systemPrompt = `You are a voice assistant for a cap distribution admin panel.
 Parse the user's spoken command and return a SINGLE valid JSON object (no markdown).
 
+CURRENT TAB: "${activeTab}"
+CURRENT ORDER STORE ID (if any): "${currentOrderStoreId || "none"}"
+
 AVAILABLE STORES:
 ${storeList || "  (none)"}
 
 AVAILABLE PRODUCTS:
 ${productList || "  (none)"}
 
-AVAILABLE ACTIONS — return exactly one:
+AVAILABLE ACTIONS — return exactly one based on current tab context:
 
+--- GLOBAL (any tab) ---
 1. Navigate to a tab:
    { "action": "navigate", "tab": "dashboard|inventory|orders|stores|addOrder" }
 
-2. Show a specific store's orders:
-   { "action": "filter_store", "storeName": "<exact or partial store name>" }
-
-3. Create / pre-fill a new order:
-   { "action": "create_order", "storeId": "<id>", "storeName": "<name>",
-     "items": [{ "id": "<productId>", "name": "<name>", "price": <price>, "quantity": <qty> }],
-     "returnItems": [] }
-
-4. Update the latest order status for a store:
+2. Update the latest order status for a store:
    { "action": "update_status", "storeName": "<name>", "status": "Pending|Confirmed|Packed|Delivered|Cancelled" }
 
-5. Email the latest invoice for a store:
+3. Email the latest invoice for a store:
    { "action": "send_invoice", "storeName": "<name>" }
 
-6. Cannot understand:
-   { "action": "unknown", "message": "<brief explanation>" }
+--- ON "orders" TAB ---
+4. Show a specific store's orders:
+   { "action": "filter_store", "storeName": "<name>" }
 
-Rules:
-- Match store names and product names loosely (case-insensitive, partial match is fine).
-- If the user says "go to orders" → navigate to orders tab.
+5. Go back to all stores list:
+   { "action": "clear_store_filter" }
+
+--- ON "addOrder" TAB ---
+6. Select a store for the current order form (use this when user says "select", "choose", or names a store):
+   { "action": "select_store_for_order", "storeId": "<id>", "storeName": "<name>" }
+
+7. Add products to the new order:
+   { "action": "add_order_items", "items": [{ "id": "<productId>", "name": "<name>", "price": <price>, "quantity": <qty> }] }
+
+8. Add return items to the order:
+   { "action": "add_return_items", "items": [{ "id": "<productId>", "name": "<name>", "price": <price>, "quantity": <qty> }] }
+
+9. Save / submit the current order:
+   { "action": "save_order" }
+
+10. Clear / reset the order form:
+    { "action": "clear_order" }
+
+--- FALLBACK ---
+11. Cannot understand:
+    { "action": "unknown", "message": "<brief explanation>" }
+
+IMPORTANT CONTEXT RULES:
+- If activeTab is "addOrder" and user says a store name or "select [store]" → use "select_store_for_order", NOT "filter_store"
+- If activeTab is "addOrder" and user says "add [N] [product]" → use "add_order_items"
+- If activeTab is "addOrder" and user says "save" or "submit" → use "save_order"
+- If activeTab is "orders" and user says "show [store]" or "[store name]" → use "filter_store"
+- If activeTab is "orders" and user says "back" or "all stores" → use "clear_store_filter"
+- Match store and product names loosely (case-insensitive, partial match).
 - Return ONLY the JSON object. No explanation, no markdown.`;
 
     const response = await openai.chat.completions.create({
@@ -301,7 +325,7 @@ Rules:
     });
 
     const action = JSON.parse(response.choices[0].message.content.trim());
-    console.log(`🎙️ Voice: "${transcript}" → action: ${action.action}`);
+    console.log(`🎙️ [${activeTab}] "${transcript}" → ${action.action}`);
     res.json(action);
   } catch (error) {
     console.error("Voice command error:", error.message);

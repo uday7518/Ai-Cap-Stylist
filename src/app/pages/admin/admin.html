@@ -26,31 +26,146 @@
   </aside>
 
   <main class="admin-main">
-    <div *ngIf="activeTab === 'dashboard'">
-      <h1>Dashboard Overview</h1>
-      <p>Track inventory and retailer business activity</p>
+    <div *ngIf="activeTab === 'dashboard'" class="dash-wrap">
 
-      <div class="summary-grid">
-        <div class="summary-card">
-          <h3>Total Caps</h3>
-          <h2>{{ totalCaps }}</h2>
+      <!-- Welcome Banner -->
+      <div class="dash-welcome">
+        <div>
+          <h1 class="dash-greeting">{{ todayGreeting }}, Admin 👋</h1>
+          <p class="dash-sub">{{ today | date:'EEEE, MMMM d, y' }} &nbsp;·&nbsp; Here's your business snapshot</p>
+        </div>
+        <div class="dash-brand-badge">AI Cap Stylist</div>
+      </div>
+
+      <!-- ── Row 1: Business KPIs ── -->
+      <p class="dash-section-title">Business Overview</p>
+      <div class="dash-grid-4">
+
+        <div class="dash-card dash-blue">
+          <div class="dash-card-icon">🏪</div>
+          <div class="dash-card-body">
+            <div class="dash-card-value">{{ totalStores }}</div>
+            <div class="dash-card-label">Total Stores</div>
+            <div class="dash-card-hint">Active retail partners</div>
+          </div>
         </div>
 
-        <div class="summary-card">
-          <h3>Total Stock</h3>
-          <h2>{{ totalStock }}</h2>
+        <div class="dash-card dash-purple">
+          <div class="dash-card-icon">📦</div>
+          <div class="dash-card-body">
+            <div class="dash-card-value">{{ totalOrders }}</div>
+            <div class="dash-card-label">Total Orders</div>
+            <div class="dash-card-hint">All time</div>
+          </div>
         </div>
 
-        <div class="summary-card">
-          <h3>Inventory Value</h3>
-          <h2>${{ totalInventoryValue.toFixed(2) }}</h2>
+        <div class="dash-card dash-amber">
+          <div class="dash-card-icon">⏳</div>
+          <div class="dash-card-body">
+            <div class="dash-card-value">{{ pendingOrdersCount }}</div>
+            <div class="dash-card-label">Pending Orders</div>
+            <div class="dash-card-hint">Awaiting action</div>
+          </div>
         </div>
 
-        <div class="summary-card">
-          <h3>Order Status</h3>
-          <h2>Coming Soon</h2>
+        <div class="dash-card dash-green">
+          <div class="dash-card-icon">💰</div>
+          <div class="dash-card-body">
+            <div class="dash-card-value">${{ totalRevenue.toFixed(2) }}</div>
+            <div class="dash-card-label">Total Revenue</div>
+            <div class="dash-card-hint">From delivered orders</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Row 2: Inventory ── -->
+      <p class="dash-section-title">Inventory</p>
+      <div class="dash-grid-3">
+
+        <div class="dash-card dash-cyan">
+          <div class="dash-card-icon">🧢</div>
+          <div class="dash-card-body">
+            <div class="dash-card-value">{{ totalCaps }}</div>
+            <div class="dash-card-label">Cap Styles</div>
+            <div class="dash-card-hint">Unique products</div>
+          </div>
+        </div>
+
+        <div class="dash-card dash-indigo">
+          <div class="dash-card-icon">📊</div>
+          <div class="dash-card-body">
+            <div class="dash-card-value">{{ totalStock }}</div>
+            <div class="dash-card-label">Total Stock</div>
+            <div class="dash-card-hint">Units available</div>
+          </div>
+        </div>
+
+        <div class="dash-card dash-teal">
+          <div class="dash-card-icon">💎</div>
+          <div class="dash-card-body">
+            <div class="dash-card-value">${{ totalInventoryValue.toFixed(2) }}</div>
+            <div class="dash-card-label">Inventory Value</div>
+            <div class="dash-card-hint">At current prices</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Row 3: Order Status Breakdown ── -->
+      <p class="dash-section-title">Order Status Breakdown</p>
+      <div class="dash-status-row">
+        <div class="dash-status-pill pending">
+          <span class="dash-status-dot"></span>
+          <span class="dash-status-count">{{ pendingOrdersCount }}</span>
+          <span class="dash-status-name">Pending</span>
+        </div>
+        <div class="dash-status-pill confirmed">
+          <span class="dash-status-dot"></span>
+          <span class="dash-status-count">{{ confirmedOrdersCount }}</span>
+          <span class="dash-status-name">Confirmed</span>
+        </div>
+        <div class="dash-status-pill packed">
+          <span class="dash-status-dot"></span>
+          <span class="dash-status-count">{{ packedOrdersCount }}</span>
+          <span class="dash-status-name">Packed</span>
+        </div>
+        <div class="dash-status-pill delivered">
+          <span class="dash-status-dot"></span>
+          <span class="dash-status-count">{{ deliveredOrdersCount }}</span>
+          <span class="dash-status-name">Delivered</span>
+        </div>
+        <div class="dash-status-pill cancelled">
+          <span class="dash-status-dot"></span>
+          <span class="dash-status-count">{{ cancelledOrdersCount }}</span>
+          <span class="dash-status-name">Cancelled</span>
         </div>
       </div>
+
+      <!-- ── Row 4: Recent Orders ── -->
+      <p class="dash-section-title">Recent Orders</p>
+      <div class="dash-recent-list" *ngIf="recentOrders.length > 0; else noRecentOrders">
+        <div class="dash-recent-row" *ngFor="let order of recentOrders">
+          <div class="dash-recent-left">
+            <div class="dash-recent-avatar">{{ order.storeName?.[0]?.toUpperCase() }}</div>
+            <div>
+              <div class="dash-recent-store">{{ order.storeName }}</div>
+              <div class="dash-recent-meta">
+                <span *ngIf="order.invoice?.invoiceNumber" class="dash-recent-inv">{{ order.invoice.invoiceNumber }}</span>
+                <span>{{ (order.date?.seconds ? order.date.seconds * 1000 : order.date) | date:'MMM d, y' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="dash-recent-amount">${{ (order.finalAmount || order.total || 0).toFixed(2) }}</div>
+          <span class="dash-recent-status" [class]="(order.status || 'Pending').toLowerCase()">
+            {{ order.status || 'Pending' }}
+          </span>
+        </div>
+      </div>
+      <ng-template #noRecentOrders>
+        <div class="dash-empty">No orders yet. Start by adding a store order.</div>
+      </ng-template>
+
     </div>
 
     <div *ngIf="activeTab === 'inventory'" class="admin-page">
@@ -362,10 +477,16 @@
       <div class="invoice-modal" *ngIf="selectedInvoiceOrder">
         <div class="invoice-box">
 
-          <div class="invoice-modal-header">
-            <h2>Create Invoice</h2>
-            <button class="close-x-btn" (click)="closeInvoice()" title="Close">✕</button>
+          <!-- Fixed header -->
+          <div class="invoice-box-header">
+            <div class="invoice-modal-header">
+              <h2>Create Invoice</h2>
+              <button class="close-x-btn" (click)="closeInvoice()" title="Close">✕</button>
+            </div>
           </div>
+
+          <!-- Scrollable body -->
+          <div class="invoice-box-scroll">
 
           <div class="invoice-store-info">
             <p><strong>Store:</strong> {{ selectedInvoiceOrder.storeName }}</p>
@@ -498,6 +619,7 @@
             </button>
           </div>
 
+          </div><!-- /invoice-box-scroll -->
         </div>
       </div>
     </div>
@@ -678,10 +800,11 @@
   <button
     class="voice-mic-btn"
     [class.listening]="isListening"
+    [class.continuous]="!isListening && voiceToastVisible"
     (click)="toggleVoice()"
-    [title]="isListening ? 'Stop listening' : 'Voice Command'"
+    [title]="voiceToastVisible ? 'Stop voice assistant' : 'Start voice assistant'"
   >
-    {{ isListening ? '⏹' : '🎙️' }}
+    {{ voiceToastVisible ? '⏹' : '🎙️' }}
   </button>
 
   <div class="voice-toast" *ngIf="voiceToastVisible" [ngClass]="'voice-toast--' + voiceState">
